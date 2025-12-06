@@ -14,8 +14,8 @@ pub enum Message {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct System {
-    name: Option<String>,
-    content: String,
+    pub name: Option<String>,
+    pub content: String,
 }
 
 impl From<System> for Message {
