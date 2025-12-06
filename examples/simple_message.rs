@@ -1,4 +1,4 @@
-use deepseek_api::{Client, Message, Model};
+use deepseek_api::{Client, Model, message::Message};
 
 #[tokio::main]
 async fn main() {

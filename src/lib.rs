@@ -9,7 +9,7 @@ use response::streaming::Chunk;
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
-pub use request::message::{Assistant, Message, System, Tool, User};
+pub use request::message;
 pub use response::FinishReason;
 
 use crate::{
