@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct UserBalance {
     /// Whether the user's balance is sufficient for API calls.
     pub is_available: bool,
-    pub balance_infos: Vec<BalacneInfo>
+    pub balance_infos: Vec<BalacneInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,11 +19,10 @@ pub struct BalacneInfo {
     pub topped_up_balance: String,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Currency {
     #[serde(rename = "CNY")]
     Cny,
     #[serde(rename = "USD")]
-    Usd
+    Usd,
 }

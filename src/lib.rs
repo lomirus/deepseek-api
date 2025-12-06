@@ -271,7 +271,7 @@ impl Client {
                     }
                 }
 
-                if tool_calls.len() > 0 {
+                if !tool_calls.is_empty() {
                     assistant_msg.tool_calls = Some(tool_calls.iter().map(|tool_call| request::message::ToolCall {
                         r#type: tool_call.r#type.clone().unwrap(),
                         id: tool_call.id.clone().unwrap(),
@@ -301,7 +301,7 @@ impl Client {
                                     .unwrap()
                                     .call;
                             self.context.push(request::message::Tool {
-                                tool_call_id: tool_call_id,
+                                tool_call_id,
                                 content: call(tool_call.function.arguments),
                             }.into());
                         }

@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 use crate::ToolCallType;
@@ -37,13 +36,12 @@ impl From<User> for Message {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Assistant {
     pub name: Option<String>,
     pub content: String,
     pub reasoning_content: Option<String>,
-    pub tool_calls: Option<Vec<ToolCall>>
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 impl From<Assistant> for Message {
