@@ -4,8 +4,8 @@ use crate::Role;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    content: String,
-    reasoning_content: Option<String>,
+    pub content: String,
+    pub reasoning_content: Option<String>,
     tool_calls: Option<Vec<ToolCall>>,
     role: Role,
 }

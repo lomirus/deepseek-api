@@ -4,13 +4,15 @@ mod response;
 use async_stream::stream;
 use futures::Stream;
 use request::ChatCompletionRequest;
-use response::{Response, streaming::Chunk};
+use response::streaming::Chunk;
 use serde::{Deserialize, Serialize};
 
-pub use request::Message;
 pub use response::{FinishReason, streaming};
 
-use crate::{request::Thinking, response::UserBalance};
+use crate::{
+    request::{Assistant, Message, Thinking, User},
+    response::{UserBalance, no_streaming},
+};
 
 const BASE_URL: &str = "https://api.deepseek.com";
 
@@ -61,6 +63,8 @@ pub struct Client {
     ///
     /// We generally recommend altering this or `temperature`` but not both.
     pub top_p: Option<f32>,
+
+    pub context: Vec<Message>,
 }
 
 impl Client {
@@ -75,11 +79,17 @@ impl Client {
             presence_penalty: None,
             temperature: None,
             top_p: None,
+            context: Vec::new(),
         }
     }
 
     #[must_use]
-    pub async fn chat(&self, messages: Vec<Message>) -> Response {
+    pub async fn chat(&mut self, message: &str) -> Vec<no_streaming::Choice> {
+        self.context.push(Message::User(User {
+            name: None,
+            content: message.to_string(),
+        }));
+
         let client = reqwest::Client::new();
         let resp = client
             .post(format!("{BASE_URL}/chat/completions"))
@@ -89,7 +99,7 @@ impl Client {
             .body(
                 serde_json::to_string(&ChatCompletionRequest {
                     model: self.model.clone(),
-                    messages,
+                    messages: self.context.clone(),
                     thinking: self.thinking.clone(),
                     stream: false,
                     frequency_penalty: self.frequency_penalty,
@@ -103,11 +113,29 @@ impl Client {
             .send()
             .await
             .unwrap();
-        resp.json::<Response>().await.unwrap()
+        let resp: no_streaming::Response = resp.json().await.unwrap();
+
+        self.context.extend(
+            resp.choices
+                .iter()
+                .map(|choice| {
+                    Message::Assistant(Assistant {
+                        name: None,
+                        content: choice.message.content.to_owned(),
+                        reasoning_content: choice.message.reasoning_content.to_owned(),
+                    })
+                })
+                .collect::<Vec<Message>>(),
+        );
+        resp.choices
     }
 
     #[must_use]
-    pub async fn streaming_chat(&self, messages: Vec<Message>) -> impl Stream<Item = Chunk> {
+    pub async fn streaming_chat(&mut self, message: &str) -> impl Stream<Item = streaming::Delta> {
+        self.context.push(Message::User(User {
+            name: None,
+            content: message.to_string(),
+        }));
         let client = reqwest::Client::new();
         let mut resp = client
             .post(format!("{BASE_URL}/chat/completions"))
@@ -117,7 +145,7 @@ impl Client {
             .body(
                 serde_json::to_string(&ChatCompletionRequest {
                     model: self.model.clone(),
-                    messages,
+                    messages: self.context.clone(),
                     thinking: self.thinking.clone(),
                     stream: true,
                     frequency_penalty: self.frequency_penalty,
@@ -132,6 +160,12 @@ impl Client {
             .await
             .unwrap();
 
+        let mut resp_msg = Assistant {
+            name: None,
+            content: String::new(),
+            reasoning_content: None,
+        };
+
         stream! {
             while let Some(chunk) = resp.chunk().await.unwrap() {
                 let s = String::from_utf8(chunk.to_vec()).unwrap();
@@ -139,9 +173,21 @@ impl Client {
                     if data == "[DONE]" {
                         break;
                     }
-                    yield serde_json::from_str(&data).unwrap();
+                    let chunk: Chunk = serde_json::from_str(&data).unwrap();
+                    for choice in chunk.choices {
+                        let delta = choice.delta;
+                        if let Some(ref content) = delta.content {
+                            resp_msg.content.push_str(content);
+                        }
+                        if let Some(ref reasoning_content) = delta.reasoning_content {
+                            resp_msg.reasoning_content.get_or_insert_default().push_str(reasoning_content);
+                        }
+                        yield delta;
+                    }
                 }
             }
+
+            self.context.push(Message::Assistant(resp_msg));
         }
     }
 

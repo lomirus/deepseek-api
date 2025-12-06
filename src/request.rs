@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Model, Role};
+use crate::Model;
 
 #[derive(Serialize, Deserialize)]
 pub struct ChatCompletionRequest {
@@ -33,40 +33,39 @@ pub struct ChatCompletionRequest {
     pub top_p: Option<f32>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Message {
-    pub content: String,
-    pub role: Role,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "role")]
+#[serde(rename_all = "snake_case")]
+pub enum Message {
+    System(System),
+    User(User),
+    Assistant(Assistant),
+    Tool(Tool),
 }
 
-impl Message {
-    pub fn system(content: &str) -> Self {
-        Self {
-            content: content.to_string(),
-            role: Role::System,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct System {
+    name: Option<String>,
+    content: String,
+}
 
-    pub fn user(content: &str) -> Self {
-        Self {
-            content: content.to_string(),
-            role: Role::User,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct User {
+    pub name: Option<String>,
+    pub content: String,
+}
 
-    pub fn assistant(content: &str) -> Self {
-        Self {
-            content: content.to_string(),
-            role: Role::Assistant,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Assistant {
+    pub name: Option<String>,
+    pub content: String,
+    pub reasoning_content: Option<String>,
+}
 
-    pub fn tool(content: &str) -> Self {
-        Self {
-            content: content.to_string(),
-            role: Role::Tool,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Tool {
+    tool_call_id: String,
+    content: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

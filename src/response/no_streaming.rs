@@ -9,7 +9,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
     id: String,
-    choices: Vec<Choice>,
+    pub choices: Vec<Choice>,
     created: u64,
     model: Model,
     system_fingerprint: String,
@@ -21,7 +21,7 @@ pub struct Response {
 pub struct Choice {
     index: u64,
     finish_reason: FinishReason,
-    message: Message,
+    pub message: Message,
     logprobs: Value,
 }
 
