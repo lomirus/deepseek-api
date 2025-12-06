@@ -274,8 +274,8 @@ impl Client {
                                     reasoning_content,
                                     role,
                                 } => {
-                                    if content.as_ref().is_some_and(|c| c != "")
-                                        || reasoning_content.as_ref().is_some_and(|c| c != "")
+                                    if content.as_ref().is_some_and(|c| !c.is_empty())
+                                        || reasoning_content.as_ref().is_some_and(|c| !c.is_empty())
                                     {
                                         yield Delta::Assistant {
                                             content,
