@@ -268,7 +268,26 @@ impl Client {
                                 finish_reason = Some(fr);
                             }
 
-                            yield delta.into();
+                            match delta {
+                                streaming::Delta::Assistant {
+                                    content,
+                                    reasoning_content,
+                                    role,
+                                } => {
+                                    if content.as_ref().is_some_and(|c| c != "")
+                                        || reasoning_content.as_ref().is_some_and(|c| c != "")
+                                    {
+                                        yield Delta::Assistant {
+                                            content,
+                                            reasoning_content,
+                                            role,
+                                        }
+                                    }
+                                },
+                                streaming::Delta::ToolCall {
+                                    tool_calls
+                                } => yield Delta::ToolCallInput { tool_calls },
+                            }
                         }
                     }
                 }
@@ -368,22 +387,4 @@ pub enum Delta {
         tool_call_id: String,
         content: String,
     },
-}
-
-impl From<streaming::Delta> for Delta {
-    fn from(value: streaming::Delta) -> Self {
-        use streaming::Delta::*;
-        match value {
-            Assistant {
-                content,
-                reasoning_content,
-                role,
-            } => Delta::Assistant {
-                content,
-                reasoning_content,
-                role,
-            },
-            ToolCall { tool_calls } => Delta::ToolCallInput { tool_calls },
-        }
-    }
 }
