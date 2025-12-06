@@ -27,7 +27,7 @@ fn input() -> String {
 }
 
 #[derive(PartialEq)]
-enum Mode {
+enum State {
     UserInput,
     Thinking,
     ToolCallInput,
@@ -35,10 +35,10 @@ enum Mode {
     Answer,
 }
 
-impl Mode {
+impl State {
     // Print empty line when mode changes.
     fn transition_to(&mut self, mode: Self) {
-        use Mode::*;
+        use State::*;
 
         if *self != mode {
             match self {
@@ -70,9 +70,9 @@ async fn main() {
     //
     // > Alright. Then how about 1 + 1?
 
-    let mut mode = Mode::UserInput;
+    let mut mode = State::UserInput;
     loop {
-        mode.transition_to(Mode::UserInput);
+        mode.transition_to(State::UserInput);
         let mut stream = client.streaming_chat(&input()).await;
 
         while let Some(delta) = stream.next().await {
@@ -84,10 +84,10 @@ async fn main() {
                     ..
                 } => {
                     if let Some(reasoning_content) = reasoning_content {
-                        mode.transition_to(Mode::Thinking);
+                        mode.transition_to(State::Thinking);
                         print!("{}", reasoning_content.black());
                     } else if let Some(content) = content {
-                        mode.transition_to(Mode::Answer);
+                        mode.transition_to(State::Answer);
                         print!("{content}");
                     }
                 }
@@ -96,8 +96,8 @@ async fn main() {
                     let tool_call = &tool_calls[0];
                     if let Some(id) = &tool_call.id {
                         match mode {
-                            Mode::ToolCallInput => println!("{}", ")".yellow()),
-                            _ => mode.transition_to(Mode::ToolCallInput),
+                            State::ToolCallInput => println!("{}", ")".yellow()),
+                            _ => mode.transition_to(State::ToolCallInput),
                         }
                         print!(
                             "{}{} = {}{}{}",
@@ -115,7 +115,7 @@ async fn main() {
                     tool_call_id,
                     content,
                 } => {
-                    mode.transition_to(Mode::ToolCallOutput);
+                    mode.transition_to(State::ToolCallOutput);
                     println!("{}{} = {content}", "@".blue(), tool_call_id.blue());
                 }
             }
