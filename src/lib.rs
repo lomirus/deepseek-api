@@ -2,7 +2,7 @@ mod request;
 mod response;
 
 use async_stream::stream;
-use futures::Stream;
+use futures::{StreamExt, stream::BoxStream};
 use request::ChatCompletionRequest;
 use response::streaming::Chunk;
 use serde::{Deserialize, Serialize};
@@ -131,7 +131,7 @@ impl Client {
     }
 
     #[must_use]
-    pub async fn streaming_chat(&mut self, message: &str) -> impl Stream<Item = streaming::Delta> {
+    pub async fn streaming_chat(&mut self, message: &str) -> BoxStream<'_, streaming::Delta> {
         self.context.push(Message::User(User {
             name: None,
             content: message.to_string(),
@@ -166,7 +166,7 @@ impl Client {
             reasoning_content: None,
         };
 
-        stream! {
+        let stream = stream! {
             while let Some(chunk) = resp.chunk().await.unwrap() {
                 let s = String::from_utf8(chunk.to_vec()).unwrap();
                 for data in s.trim().split("\n\n").map(|s| s[6..].to_string()) {
@@ -188,7 +188,9 @@ impl Client {
             }
 
             self.context.push(Message::Assistant(resp_msg));
-        }
+        };
+
+        stream.boxed()
     }
 
     #[must_use]
