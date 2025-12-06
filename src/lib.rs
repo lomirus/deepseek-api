@@ -5,12 +5,13 @@ use async_stream::stream;
 use futures::{StreamExt, stream::BoxStream};
 use request::ChatCompletionRequest;
 use response::streaming::Chunk;
+use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
 pub use response::{FinishReason, streaming};
 
 use crate::{
-    request::{Assistant, Message, Thinking, User},
+    request::Thinking,
     response::{UserBalance, no_streaming},
 };
 
@@ -64,7 +65,9 @@ pub struct Client {
     /// We generally recommend altering this or `temperature`` but not both.
     pub top_p: Option<f32>,
 
-    pub context: Vec<Message>,
+    pub context: Vec<request::message::Message>,
+
+    pub tools: Vec<Function>,
 }
 
 impl Client {
@@ -80,114 +83,233 @@ impl Client {
             temperature: None,
             top_p: None,
             context: Vec::new(),
+            tools: Vec::new(),
         }
     }
 
     #[must_use]
-    pub async fn chat(&mut self, message: &str) -> Vec<no_streaming::Choice> {
-        self.context.push(Message::User(User {
-            name: None,
-            content: message.to_string(),
-        }));
-
-        let client = reqwest::Client::new();
-        let resp = client
-            .post(format!("{BASE_URL}/chat/completions"))
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .body(
-                serde_json::to_string(&ChatCompletionRequest {
-                    model: self.model.clone(),
-                    messages: self.context.clone(),
-                    thinking: self.thinking.clone(),
-                    stream: false,
-                    frequency_penalty: self.frequency_penalty,
-                    max_tokens: self.max_tokens,
-                    presence_penalty: self.presence_penalty,
-                    temperature: self.temperature,
-                    top_p: self.top_p,
-                })
-                .unwrap(),
-            )
-            .send()
-            .await
-            .unwrap();
-        let resp: no_streaming::Response = resp.json().await.unwrap();
-
-        self.context.extend(
-            resp.choices
-                .iter()
-                .map(|choice| {
-                    Message::Assistant(Assistant {
-                        name: None,
-                        content: choice.message.content.to_owned(),
-                        reasoning_content: choice.message.reasoning_content.to_owned(),
-                    })
-                })
-                .collect::<Vec<Message>>(),
+    pub async fn chat(&mut self, message: &str) -> Vec<request::message::Message> {
+        self.context.push(
+            request::message::User {
+                name: None,
+                content: message.to_string(),
+            }
+            .into(),
         );
-        resp.choices
+
+        let start_index = self.context.len();
+
+        loop {
+            let client = reqwest::Client::new();
+            let resp = client
+                .post(format!("{BASE_URL}/chat/completions"))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .body(
+                    serde_json::to_string(&ChatCompletionRequest {
+                        model: self.model.clone(),
+                        messages: self.context.clone(),
+                        thinking: self.thinking.clone(),
+                        stream: false,
+                        frequency_penalty: self.frequency_penalty,
+                        max_tokens: self.max_tokens,
+                        presence_penalty: self.presence_penalty,
+                        temperature: self.temperature,
+                        top_p: self.top_p,
+                        tools: self.tools.iter().map(|tool| tool.clone().into()).collect(),
+                    })
+                    .unwrap(),
+                )
+                .send()
+                .await
+                .unwrap();
+            let resp: no_streaming::Response = resp.json().await.unwrap();
+
+            assert_eq!(resp.choices.len(), 1);
+            let choice = &resp.choices[0];
+
+            self.context.push(
+                request::message::Assistant {
+                    name: None,
+                    content: choice.message.content.to_owned(),
+                    reasoning_content: choice.message.reasoning_content.to_owned(),
+                    tool_calls: choice.message.tool_calls.clone().map(|tool_calls| {
+                        tool_calls
+                            .iter()
+                            .map(|tool_call| request::message::ToolCall {
+                                r#type: tool_call.r#type.clone(),
+                                id: tool_call.id.clone(),
+                                function: request::message::Function {
+                                    name: tool_call.function.name.clone(),
+                                    arguments: tool_call.function.arguments.clone(),
+                                },
+                            })
+                            .collect()
+                    }),
+                }
+                .into(),
+            );
+
+            if let Some(ref tool_calls) = choice.message.tool_calls {
+                for tool_call in tool_calls {
+                    let func = self
+                        .tools
+                        .iter()
+                        .find(|tool| tool.name == tool_call.function.name)
+                        .unwrap()
+                        .call;
+                    self.context.push(
+                        request::message::Tool {
+                            tool_call_id: tool_call.id.clone(),
+                            content: func(tool_call.function.arguments.clone()),
+                        }
+                        .into(),
+                    );
+                }
+            }
+
+            match choice.finish_reason {
+                FinishReason::ToolCalls => continue,
+                _ => break,
+            }
+        }
+
+        self.context[start_index..].to_vec()
     }
 
     #[must_use]
     pub async fn streaming_chat(&mut self, message: &str) -> BoxStream<'_, streaming::Delta> {
-        self.context.push(Message::User(User {
-            name: None,
-            content: message.to_string(),
-        }));
-        let client = reqwest::Client::new();
-        let mut resp = client
-            .post(format!("{BASE_URL}/chat/completions"))
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .body(
-                serde_json::to_string(&ChatCompletionRequest {
-                    model: self.model.clone(),
-                    messages: self.context.clone(),
-                    thinking: self.thinking.clone(),
-                    stream: true,
-                    frequency_penalty: self.frequency_penalty,
-                    max_tokens: self.max_tokens,
-                    presence_penalty: self.presence_penalty,
-                    temperature: self.temperature,
-                    top_p: self.top_p,
-                })
-                .unwrap(),
-            )
-            .send()
-            .await
-            .unwrap();
+        self.context.push(
+            request::message::User {
+                name: None,
+                content: message.to_string(),
+            }
+            .into(),
+        );
 
-        let mut resp_msg = Assistant {
-            name: None,
-            content: String::new(),
-            reasoning_content: None,
-        };
+        let mut finish_reason: Option<FinishReason> = None;
 
         let stream = stream! {
-            while let Some(chunk) = resp.chunk().await.unwrap() {
-                let s = String::from_utf8(chunk.to_vec()).unwrap();
-                for data in s.trim().split("\n\n").map(|s| s[6..].to_string()) {
-                    if data == "[DONE]" {
-                        break;
-                    }
-                    let chunk: Chunk = serde_json::from_str(&data).unwrap();
-                    for choice in chunk.choices {
-                        let delta = choice.delta;
-                        if let Some(ref content) = delta.content {
-                            resp_msg.content.push_str(content);
+            loop {
+                let client = reqwest::Client::new();
+                let mut resp = client
+                    .post(format!("{BASE_URL}/chat/completions"))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("Authorization", format!("Bearer {}", self.api_key))
+                    .body(
+                        serde_json::to_string(&ChatCompletionRequest {
+                            model: self.model.clone(),
+                            messages: self.context.clone(),
+                            thinking: self.thinking.clone(),
+                            stream: true,
+                            frequency_penalty: self.frequency_penalty,
+                            max_tokens: self.max_tokens,
+                            presence_penalty: self.presence_penalty,
+                            temperature: self.temperature,
+                            top_p: self.top_p,
+                            tools: self.tools.iter().map(|tool| tool.clone().into()).collect(),
+                        })
+                        .unwrap(),
+                    )
+                    .send()
+                    .await
+                    .unwrap();
+
+                let mut assistant_msg = request::message::Assistant {
+                    name: None,
+                    content: String::new(),
+                    reasoning_content: None,
+                    tool_calls: None,
+                };
+
+                let mut tool_calls: Vec<streaming::ToolCall> = Vec::new();
+
+                while let Some(chunk) = resp.chunk().await.unwrap() {
+                    let s = String::from_utf8(chunk.to_vec()).unwrap();
+                    for data in s.trim().split("\n\n").map(|s| s[6..].to_string()) {
+                        if data == "[DONE]" {
+                            break;
                         }
-                        if let Some(ref reasoning_content) = delta.reasoning_content {
-                            resp_msg.reasoning_content.get_or_insert_default().push_str(reasoning_content);
+                        let chunk: Chunk = serde_json::from_str(&data).unwrap();
+                        for choice in chunk.choices {
+                            let delta = choice.delta;
+                            match delta.clone() {
+                                streaming::Delta::Assistant {
+                                    content,
+                                    reasoning_content,
+                                    ..
+                                } => {
+                                    if let Some(ref content) = content {
+                                        assistant_msg.content.push_str(content);
+                                    }
+                                    if let Some(ref reasoning_content) = reasoning_content {
+                                        assistant_msg.reasoning_content.get_or_insert_default().push_str(reasoning_content);
+                                    }
+                                },
+                                streaming::Delta::ToolCall { tool_calls: tool_calls_delta } => {
+                                    assert_eq!(tool_calls_delta.len(), 1);
+                                    let tool_call_delta = &tool_calls_delta[0];
+                                    if tool_call_delta.index == tool_calls.len() {
+                                        tool_calls.push(tool_call_delta.clone());
+                                    } else {
+                                        tool_calls[tool_call_delta.index]
+                                            .function
+                                            .arguments
+                                            .push_str(&tool_call_delta.function.arguments);
+                                    }
+                                },
+                            }
+
+                            if let Some(fr) = choice.finish_reason {
+                                finish_reason = Some(fr);
+                            }
+
+                            yield delta;
                         }
-                        yield delta;
                     }
                 }
-            }
 
-            self.context.push(Message::Assistant(resp_msg));
+                if tool_calls.len() > 0 {
+                    assistant_msg.tool_calls = Some(tool_calls.iter().map(|tool_call| request::message::ToolCall {
+                        r#type: tool_call.r#type.clone().unwrap(),
+                        id: tool_call.id.clone().unwrap(),
+                        function: request::message::Function {
+                            name: tool_call.function.name.clone().unwrap(),
+                            arguments: tool_call.function.arguments.clone()
+                        },
+                    }).collect());
+                }
+
+                self.context.push(assistant_msg.into());
+
+                match finish_reason {
+                    Some(FinishReason::ToolCalls) => {
+                        for tool_call in tool_calls {
+                            let tool_call_id = tool_call.id.unwrap();
+                            if self.context.iter().any(|msg| match msg {
+                                request::message::Message::Tool(tool) => tool.tool_call_id == tool_call_id,
+                                _ => false
+                            }) {
+                                continue;
+                            }
+                            let call = self
+                                    .tools
+                                    .iter()
+                                    .find(|tool| tool.name == tool_call.function.name.clone().unwrap())
+                                    .unwrap()
+                                    .call;
+                            self.context.push(request::message::Tool {
+                                tool_call_id: tool_call_id,
+                                content: call(tool_call.function.arguments),
+                            }.into());
+                        }
+                    },
+                    None => unreachable!(),
+                    _ => break
+                }
+            }
         };
 
         stream.boxed()
@@ -206,4 +328,18 @@ impl Client {
             .unwrap();
         resp.json().await.unwrap()
     }
+}
+
+#[derive(Clone)]
+pub struct Function {
+    pub name: String,
+    pub description: String,
+    pub parameters: Schema,
+    pub call: fn(String) -> String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolCallType {
+    Function,
 }

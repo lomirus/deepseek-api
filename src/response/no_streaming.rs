@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    Model,
-    response::fields::{FinishReason, Message, Usage},
+    Model, Role, ToolCallType, response::fields::{FinishReason, Usage}
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,13 +19,35 @@ pub struct Response {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Choice {
     index: u64,
-    finish_reason: FinishReason,
+    pub finish_reason: FinishReason,
     pub message: Message,
     logprobs: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Message {
+    pub content: String,
+    pub reasoning_content: Option<String>,
+    pub tool_calls: Option<Vec<ToolCall>>,
+    role: Role,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Object {
     #[serde(rename = "chat.completion")]
     ChatCompletion,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolCall {
+    index: u32,
+    pub id: String,
+    pub r#type: ToolCallType,
+    pub function: Function,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Function {
+    pub name: String,
+    pub arguments: String,
 }

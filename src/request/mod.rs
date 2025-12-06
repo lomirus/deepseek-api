@@ -1,10 +1,13 @@
+pub mod message;
+
+use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::Model;
 
 #[derive(Serialize, Deserialize)]
 pub struct ChatCompletionRequest {
-    pub messages: Vec<Message>,
+    pub messages: Vec<message::Message>,
     pub model: Model,
     pub thinking: Option<Thinking>,
     pub stream: bool,
@@ -31,41 +34,9 @@ pub struct ChatCompletionRequest {
     ///
     /// We generally recommend altering this or `temperature`` but not both.
     pub top_p: Option<f32>,
-}
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "role")]
-#[serde(rename_all = "snake_case")]
-pub enum Message {
-    System(System),
-    User(User),
-    Assistant(Assistant),
-    Tool(Tool),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct System {
-    name: Option<String>,
-    content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct User {
-    pub name: Option<String>,
-    pub content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Assistant {
-    pub name: Option<String>,
-    pub content: String,
-    pub reasoning_content: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Tool {
-    tool_call_id: String,
-    content: String,
+    /// A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for. A max of 128 functions are supported.
+    pub tools: Vec<Tool>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -93,4 +64,25 @@ pub enum ThinkingType {
     Enabled,
     #[serde(rename = "disabled")]
     Disabled,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "function")]
+#[serde(rename_all = "snake_case")]
+pub enum Tool {
+    Function {
+        name: String,
+        description: String,
+        parameters: Schema,
+    },
+}
+
+impl From<crate::Function> for Tool {
+    fn from(value: crate::Function) -> Self {
+        Self::Function {
+            name: value.name,
+            description: value.description,
+            parameters: value.parameters,
+        }
+    }
 }

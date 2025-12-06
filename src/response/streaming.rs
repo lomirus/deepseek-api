@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Model, Role, response::fields::FinishReason};
+use crate::{Model, Role, ToolCallType, response::fields::FinishReason};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Chunk {
@@ -22,10 +22,30 @@ pub struct Choice {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Delta {
-    pub content: Option<String>,
-    pub reasoning_content: Option<String>,
-    pub role: Option<Role>,
+#[serde(untagged, deny_unknown_fields)]
+pub enum Delta {
+    Assistant {
+        content: Option<String>,
+        reasoning_content: Option<String>,
+        role: Option<Role>,
+    },
+    ToolCall {
+        tool_calls: Vec<ToolCall>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolCall {
+    pub r#type: Option<ToolCallType>,
+    pub id: Option<String>,
+    pub index: usize,
+    pub function: Function,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Function {
+    pub name: Option<String>,
+    pub arguments: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

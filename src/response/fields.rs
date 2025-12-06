@@ -1,34 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Role;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Message {
-    pub content: String,
-    pub reasoning_content: Option<String>,
-    tool_calls: Option<Vec<ToolCall>>,
-    role: Role,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ToolCall {
-    id: String,
-    r#type: ToolCallType,
-    function: Vec<Function>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-enum ToolCallType {
-    #[serde(rename = "function")]
-    Function,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Function {
-    name: String,
-    arguments: String,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum FinishReason {
     #[serde(rename = "stop")]
