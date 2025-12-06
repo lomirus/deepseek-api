@@ -58,7 +58,7 @@ async fn main() {
     let mut client = Client::new(Model::DeepSeekReasoner, &api_key);
     client.tools = [Function {
         name: "add".to_string(),
-        description: "Adds two unsigned integers.".to_string(),
+        description: "Adds two integers.".to_string(),
         parameters: schema_for!(AddParamters),
         call: add,
     }]
