@@ -89,7 +89,6 @@ impl Client {
         }
     }
 
-    #[must_use]
     pub async fn chat(&mut self, message: &str) -> Vec<request::message::Message> {
         self.context.push(
             request::message::User {
