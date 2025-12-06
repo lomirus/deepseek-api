@@ -4,11 +4,13 @@ mod response;
 use async_stream::stream;
 use futures::{StreamExt, stream::BoxStream};
 use request::ChatCompletionRequest;
+use response::streaming;
 use response::streaming::Chunk;
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
-pub use response::{FinishReason, streaming};
+pub use request::message::{Assistant, Message, System, Tool, User};
+pub use response::FinishReason;
 
 use crate::{
     request::Thinking,
@@ -179,7 +181,7 @@ impl Client {
     }
 
     #[must_use]
-    pub async fn streaming_chat(&mut self, message: &str) -> BoxStream<'_, streaming::Delta> {
+    pub async fn streaming_chat(&mut self, message: &str) -> BoxStream<'_, Delta> {
         self.context.push(
             request::message::User {
                 name: None,
@@ -266,7 +268,7 @@ impl Client {
                                 finish_reason = Some(fr);
                             }
 
-                            yield delta;
+                            yield delta.into();
                         }
                     }
                 }
@@ -294,15 +296,23 @@ impl Client {
                             }) {
                                 continue;
                             }
+
                             let call = self
-                                    .tools
-                                    .iter()
-                                    .find(|tool| tool.name == tool_call.function.name.clone().unwrap())
-                                    .unwrap()
-                                    .call;
+                                .tools
+                                .iter()
+                                .find(|tool| tool.name == tool_call.function.name.clone().unwrap())
+                                .unwrap()
+                                .call;
+                            let content = call(tool_call.function.arguments);
+
+                            yield Delta::ToolCallOutput {
+                                tool_call_id: tool_call_id.clone(),
+                                content: content.clone(),
+                            };
+
                             self.context.push(request::message::Tool {
                                 tool_call_id,
-                                content: call(tool_call.function.arguments),
+                                content,
                             }.into());
                         }
                     },
@@ -342,4 +352,38 @@ pub struct Function {
 #[serde(rename_all = "snake_case")]
 pub enum ToolCallType {
     Function,
+}
+
+#[derive(Debug, Clone)]
+pub enum Delta {
+    Assistant {
+        content: Option<String>,
+        reasoning_content: Option<String>,
+        role: Option<Role>,
+    },
+    ToolCallInput {
+        tool_calls: Vec<streaming::ToolCall>,
+    },
+    ToolCallOutput {
+        tool_call_id: String,
+        content: String,
+    },
+}
+
+impl From<streaming::Delta> for Delta {
+    fn from(value: streaming::Delta) -> Self {
+        use streaming::Delta::*;
+        match value {
+            Assistant {
+                content,
+                reasoning_content,
+                role,
+            } => Delta::Assistant {
+                content,
+                reasoning_content,
+                role,
+            },
+            ToolCall { tool_calls } => Delta::ToolCallInput { tool_calls },
+        }
+    }
 }
