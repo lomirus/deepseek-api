@@ -3,19 +3,16 @@ mod response;
 
 use async_stream::stream;
 use futures::{StreamExt, stream::BoxStream};
-use request::ChatCompletionRequest;
-use response::streaming;
-use response::streaming::Chunk;
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
-pub use request::message;
-pub use response::FinishReason;
-
 use crate::{
-    request::{ResponseFormatType, Thinking},
-    response::{UserBalance, no_streaming},
+    request::{ChatCompletionRequest, Thinking},
+    response::{UserBalance, no_streaming, streaming, streaming::Chunk},
 };
+
+pub use request::{ResponseFormatType, message};
+pub use response::FinishReason;
 
 const BASE_URL: &str = "https://api.deepseek.com";
 
