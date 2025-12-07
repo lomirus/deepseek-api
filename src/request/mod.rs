@@ -25,6 +25,11 @@ pub struct ChatCompletionRequest {
     /// Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
     pub presence_penalty: Option<f32>,
 
+    /// An object specifying the format that the model must output. Setting to { "type": "json_object" } enables JSON Output, which guarantees the message the model generates is valid JSON.
+    ///
+    /// Important: When using JSON Output, you must also instruct the model to produce JSON yourself via a system or user message. Without this, the model may generate an unending stream of whitespace until the generation reaches the token limit, resulting in a long-running and seemingly "stuck" request. Also note that the message content may be partially cut off if finish_reason="length", which indicates the generation exceeded max_tokens or the conversation exceeded the max context length.
+    pub response_format: ResponseFormat,
+
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
     ///
     /// We generally recommend altering this or `top_p` but not both.
@@ -85,4 +90,22 @@ impl From<crate::Function> for Tool {
             parameters: value.parameters,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ResponseFormat {
+    r#type: ResponseFormatType,
+}
+
+impl From<ResponseFormatType> for ResponseFormat {
+    fn from(value: ResponseFormatType) -> Self {
+        ResponseFormat { r#type: value }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ResponseFormatType {
+    Text,
+    JsonObject,
 }
