@@ -247,62 +247,53 @@ impl Client {
                         }
                         let chunk: Chunk = serde_json::from_str(&data).unwrap();
                         for choice in chunk.choices {
-                            let delta = choice.delta;
-                            match delta.clone() {
-                                streaming::Delta::Assistant {
-                                    content,
-                                    reasoning_content,
-                                    ..
-                                } => {
-                                    if let Some(ref content) = content {
-                                        assistant_msg.content.push_str(content);
-                                    }
-                                    if let Some(ref reasoning_content) = reasoning_content {
-                                        assistant_msg
-                                            .reasoning_content
-                                            .get_or_insert_default()
-                                            .push_str(reasoning_content);
-                                    }
-                                }
-                                streaming::Delta::ToolCall {
-                                    tool_calls: tool_calls_delta,
-                                } => {
-                                    assert_eq!(tool_calls_delta.len(), 1);
-                                    let tool_call_delta = &tool_calls_delta[0];
-                                    if tool_call_delta.index == tool_calls.len() {
-                                        tool_calls.push(tool_call_delta.clone());
-                                    } else {
-                                        tool_calls[tool_call_delta.index]
-                                            .function
-                                            .arguments
-                                            .push_str(&tool_call_delta.function.arguments);
-                                    }
-                                }
-                            }
-
-                            if let Some(fr) = choice.finish_reason {
-                                finish_reason = Some(fr);
-                            }
-
-                            match delta {
-                                streaming::Delta::Assistant {
-                                    content,
-                                    reasoning_content,
-                                    role,
-                                } => {
-                                    if content.as_ref().is_some_and(|c| !c.is_empty())
-                                        || reasoning_content.as_ref().is_some_and(|c| !c.is_empty())
-                                    {
-                                        yield Delta::Assistant {
-                                            content,
-                                            reasoning_content,
-                                            role,
+                            match choice.finish_reason {
+                                Some(fr) => finish_reason = Some(fr),
+                                None => match choice.delta {
+                                    streaming::Delta::Assistant {
+                                        content,
+                                        reasoning_content,
+                                        role,
+                                    } => {
+                                        if let Some(ref content) = content {
+                                            assistant_msg.content.push_str(content);
+                                        }
+                                        if let Some(ref reasoning_content) = reasoning_content {
+                                            assistant_msg
+                                                .reasoning_content
+                                                .get_or_insert_default()
+                                                .push_str(reasoning_content);
+                                        }
+                                        if content.as_ref().is_some_and(|c| !c.is_empty())
+                                            || reasoning_content
+                                                .as_ref()
+                                                .is_some_and(|c| !c.is_empty())
+                                        {
+                                            yield Delta::Assistant {
+                                                content,
+                                                reasoning_content,
+                                                role,
+                                            }
                                         }
                                     }
-                                }
-                                streaming::Delta::ToolCall { tool_calls } => {
-                                    yield Delta::ToolCallInput { tool_calls }
-                                }
+                                    streaming::Delta::ToolCall {
+                                        tool_calls: tool_calls_delta,
+                                    } => {
+                                        assert_eq!(tool_calls_delta.len(), 1);
+                                        let tool_call_delta = &tool_calls_delta[0];
+                                        if tool_call_delta.index == tool_calls.len() {
+                                            tool_calls.push(tool_call_delta.clone());
+                                        } else {
+                                            tool_calls[tool_call_delta.index]
+                                                .function
+                                                .arguments
+                                                .push_str(&tool_call_delta.function.arguments);
+                                        }
+                                        yield Delta::ToolCallInput {
+                                            tool_calls: tool_calls_delta.clone(),
+                                        }
+                                    }
+                                },
                             }
                         }
                     }
