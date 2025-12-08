@@ -237,8 +237,6 @@ impl Client {
                     tool_calls: None,
                 };
 
-                let mut tool_calls: Vec<streaming::ToolCall> = Vec::new();
-
                 while let Some(chunk) = resp.chunk().await.unwrap() {
                     let s = String::from_utf8(chunk.to_vec()).unwrap();
                     for data in s.trim().split("\n\n").map(|s| s[6..].to_string()) {
@@ -281,8 +279,17 @@ impl Client {
                                     } => {
                                         assert_eq!(tool_calls_delta.len(), 1);
                                         let tool_call_delta = &tool_calls_delta[0];
+
+                                        let tool_calls = assistant_msg.tool_calls.get_or_insert_default();
                                         if tool_call_delta.index == tool_calls.len() {
-                                            tool_calls.push(tool_call_delta.clone());
+                                            tool_calls.push(request::message::ToolCall {
+                                                r#type: tool_call_delta.r#type.clone().unwrap(),
+                                                id: tool_call_delta.id.clone().unwrap(),
+                                                function: request::message::Function {
+                                                    name: tool_call_delta.function.name.clone().unwrap(),
+                                                    arguments: tool_call_delta.function.arguments.clone()
+                                                }
+                                            });
                                         } else {
                                             tool_calls[tool_call_delta.index]
                                                 .function
@@ -299,28 +306,12 @@ impl Client {
                     }
                 }
 
-                if !tool_calls.is_empty() {
-                    assistant_msg.tool_calls = Some(
-                        tool_calls
-                            .iter()
-                            .map(|tool_call| request::message::ToolCall {
-                                r#type: tool_call.r#type.clone().unwrap(),
-                                id: tool_call.id.clone().unwrap(),
-                                function: request::message::Function {
-                                    name: tool_call.function.name.clone().unwrap(),
-                                    arguments: tool_call.function.arguments.clone(),
-                                },
-                            })
-                            .collect(),
-                    );
-                }
-
-                self.context.push(assistant_msg.into());
+                self.context.push(assistant_msg.clone().into());
 
                 match finish_reason {
                     Some(FinishReason::ToolCalls) => {
-                        for tool_call in tool_calls {
-                            let tool_call_id = tool_call.id.unwrap();
+                        for tool_call in assistant_msg.tool_calls.unwrap() {
+                            let tool_call_id = tool_call.id;
                             if self.context.iter().any(|msg| match msg {
                                 request::message::Message::Tool(tool) => {
                                     tool.tool_call_id == tool_call_id
@@ -333,7 +324,7 @@ impl Client {
                             let call = self
                                 .tools
                                 .iter()
-                                .find(|tool| tool.name == tool_call.function.name.clone().unwrap())
+                                .find(|tool| tool.name == tool_call.function.name.clone())
                                 .unwrap()
                                 .call;
                             let content = call(tool_call.function.arguments);
