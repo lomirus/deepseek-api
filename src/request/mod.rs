@@ -109,3 +109,20 @@ pub enum ResponseFormatType {
     Text,
     JsonObject,
 }
+
+impl From<crate::ResponseFormat> for ResponseFormatType {
+    fn from(value: crate::ResponseFormat) -> Self {
+        match value {
+            crate::ResponseFormat::Text => ResponseFormatType::Text,
+            crate::ResponseFormat::JsonObject => ResponseFormatType::JsonObject,
+        }
+    }
+}
+
+impl From<crate::ResponseFormat> for ResponseFormat {
+    fn from(value: crate::ResponseFormat) -> Self {
+        ResponseFormat {
+            r#type: value.into(),
+        }
+    }
+}

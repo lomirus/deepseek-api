@@ -11,7 +11,7 @@ use crate::{
     response::{UserBalance, no_streaming, streaming, streaming::Chunk},
 };
 
-pub use request::{ResponseFormatType, message};
+pub use request::message;
 pub use response::FinishReason;
 
 const BASE_URL: &str = "https://api.deepseek.com";
@@ -57,7 +57,7 @@ pub struct Client {
     /// An object specifying the format that the model must output. Setting to { "type": "json_object" } enables JSON Output, which guarantees the message the model generates is valid JSON.
     ///
     /// Important: When using JSON Output, you must also instruct the model to produce JSON yourself via a system or user message. Without this, the model may generate an unending stream of whitespace until the generation reaches the token limit, resulting in a long-running and seemingly "stuck" request. Also note that the message content may be partially cut off if finish_reason="length", which indicates the generation exceeded max_tokens or the conversation exceeded the max context length.
-    pub response_format: ResponseFormatType,
+    pub response_format: ResponseFormat,
 
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
     ///
@@ -84,7 +84,7 @@ impl Client {
             frequency_penalty: None,
             max_tokens: None,
             presence_penalty: None,
-            response_format: ResponseFormatType::Text,
+            response_format: ResponseFormat::Text,
             temperature: None,
             top_p: None,
             context: Vec::new(),
@@ -391,4 +391,10 @@ pub enum Delta {
         tool_call_id: String,
         content: String,
     },
+}
+
+#[derive(Clone)]
+pub enum ResponseFormat {
+    Text,
+    JsonObject,
 }
