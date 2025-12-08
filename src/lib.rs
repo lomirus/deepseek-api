@@ -253,22 +253,24 @@ impl Client {
                                         reasoning_content,
                                         role,
                                     } => {
-                                        if let Some(ref content) = content {
-                                            assistant_msg.content.push_str(content);
+                                        if let Some(content) = content
+                                            && content != ""
+                                        {
+                                            assistant_msg.content.push_str(&content);
+
+                                            yield Delta::Content {
+                                                content,
+                                                role: role.clone(),
+                                            }
                                         }
-                                        if let Some(ref reasoning_content) = reasoning_content {
+                                        if let Some(reasoning_content) = reasoning_content
+                                            && reasoning_content != ""
+                                        {
                                             assistant_msg
                                                 .reasoning_content
                                                 .get_or_insert_default()
-                                                .push_str(reasoning_content);
-                                        }
-                                        if content.as_ref().is_some_and(|c| !c.is_empty())
-                                            || reasoning_content
-                                                .as_ref()
-                                                .is_some_and(|c| !c.is_empty())
-                                        {
-                                            yield Delta::Assistant {
-                                                content,
+                                                .push_str(&reasoning_content);
+                                            yield Delta::Thinking {
                                                 reasoning_content,
                                                 role,
                                             }
@@ -391,9 +393,12 @@ pub enum ToolCallType {
 
 #[derive(Debug, Clone)]
 pub enum Delta {
-    Assistant {
-        content: Option<String>,
-        reasoning_content: Option<String>,
+    Thinking {
+        reasoning_content: String,
+        role: Option<Role>,
+    },
+    Content {
+        content: String,
         role: Option<Role>,
     },
     ToolCallInput {

@@ -13,22 +13,19 @@ async fn main() {
     let mut is_thinking = true;
     while let Some(delta) = stream.next().await {
         match delta {
-            Delta::Assistant {
-                content,
-                reasoning_content,
-                ..
+            Delta::Thinking {
+                reasoning_content, ..
             } => {
-                if let Some(reasoning_content) = reasoning_content {
-                    print!("{}", reasoning_content.black());
-                    std::io::stdout().flush().unwrap();
-                } else if let Some(content) = content {
-                    if is_thinking {
-                        is_thinking = false;
-                        println!("\n");
-                    }
-                    print!("{content}");
-                    std::io::stdout().flush().unwrap();
+                print!("{}", reasoning_content.black());
+                std::io::stdout().flush().unwrap();
+            }
+            Delta::Content { content, .. } => {
+                if is_thinking {
+                    is_thinking = false;
+                    println!("\n");
                 }
+                print!("{content}");
+                std::io::stdout().flush().unwrap();
             }
             _ => unreachable!(),
         }

@@ -79,18 +79,15 @@ async fn main() {
         while let Some(delta) = stream.next().await {
             use Delta::*;
             match delta {
-                Assistant {
-                    content,
-                    reasoning_content,
-                    ..
+                Thinking {
+                    reasoning_content, ..
                 } => {
-                    if let Some(reasoning_content) = reasoning_content {
-                        mode.transition_to(State::Thinking);
-                        print!("{}", reasoning_content.black());
-                    } else if let Some(content) = content {
-                        mode.transition_to(State::Answer);
-                        print!("{content}");
-                    }
+                    mode.transition_to(State::Thinking);
+                    print!("{}", reasoning_content.black());
+                }
+                Content { content, .. } => {
+                    mode.transition_to(State::Answer);
+                    print!("{content}");
                 }
                 ToolCallInput {
                     tool_call_id,
