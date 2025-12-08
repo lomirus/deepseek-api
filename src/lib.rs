@@ -253,18 +253,8 @@ impl Client {
                                         reasoning_content,
                                         role,
                                     } => {
-                                        if let Some(content) = content
-                                            && content != ""
-                                        {
-                                            assistant_msg.content.push_str(&content);
-
-                                            yield Delta::Content {
-                                                content,
-                                                role: role.clone(),
-                                            }
-                                        }
                                         if let Some(reasoning_content) = reasoning_content
-                                            && reasoning_content != ""
+                                            && !reasoning_content.is_empty()
                                         {
                                             assistant_msg
                                                 .reasoning_content
@@ -272,8 +262,15 @@ impl Client {
                                                 .push_str(&reasoning_content);
                                             yield Delta::Thinking {
                                                 reasoning_content,
-                                                role,
+                                                role: role.clone(),
                                             }
+                                        }
+
+                                        if let Some(content) = content
+                                            && !content.is_empty()
+                                        {
+                                            assistant_msg.content.push_str(&content);
+                                            yield Delta::Content { content, role }
                                         }
                                     }
                                     streaming::Delta::ToolCall {
