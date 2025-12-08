@@ -92,10 +92,11 @@ async fn main() {
                         print!("{content}");
                     }
                 }
-                ToolCallInput { tool_calls } => {
-                    assert_eq!(tool_calls.len(), 1);
-                    let tool_call = &tool_calls[0];
-                    if let Some(id) = &tool_call.id {
+                ToolCallInput {
+                    tool_call_id,
+                    function,
+                } => {
+                    if let Some(id) = tool_call_id {
                         match mode {
                             State::ToolCallInput => println!("{}", ")".yellow()),
                             _ => mode.transition_to(State::ToolCallInput),
@@ -104,12 +105,12 @@ async fn main() {
                             "{}{} = {}{}{}",
                             "@".blue(),
                             id.blue(),
-                            tool_call.function.name.as_ref().unwrap().yellow(),
+                            function.name.as_ref().unwrap().yellow(),
                             "(".yellow(),
-                            tool_call.function.arguments
+                            function.arguments
                         );
                     } else {
-                        print!("{}", tool_call.function.arguments);
+                        print!("{}", function.arguments);
                     }
                 }
                 ToolCallOutput {

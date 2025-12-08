@@ -275,29 +275,39 @@ impl Client {
                                         }
                                     }
                                     streaming::Delta::ToolCall {
-                                        tool_calls: tool_calls_delta,
+                                        tool_calls: tool_call_deltas,
                                     } => {
-                                        assert_eq!(tool_calls_delta.len(), 1);
-                                        let tool_call_delta = &tool_calls_delta[0];
+                                        for tool_call_delta in tool_call_deltas {
+                                            let tool_calls =
+                                                assistant_msg.tool_calls.get_or_insert_default();
 
-                                        let tool_calls = assistant_msg.tool_calls.get_or_insert_default();
-                                        if tool_call_delta.index == tool_calls.len() {
-                                            tool_calls.push(request::message::ToolCall {
-                                                r#type: tool_call_delta.r#type.clone().unwrap(),
-                                                id: tool_call_delta.id.clone().unwrap(),
-                                                function: request::message::Function {
-                                                    name: tool_call_delta.function.name.clone().unwrap(),
-                                                    arguments: tool_call_delta.function.arguments.clone()
-                                                }
-                                            });
-                                        } else {
-                                            tool_calls[tool_call_delta.index]
-                                                .function
-                                                .arguments
-                                                .push_str(&tool_call_delta.function.arguments);
-                                        }
-                                        yield Delta::ToolCallInput {
-                                            tool_calls: tool_calls_delta.clone(),
+                                            if tool_call_delta.index == tool_calls.len() {
+                                                tool_calls.push(request::message::ToolCall {
+                                                    r#type: tool_call_delta.r#type.clone().unwrap(),
+                                                    id: tool_call_delta.id.clone().unwrap(),
+                                                    function: request::message::Function {
+                                                        name: tool_call_delta
+                                                            .function
+                                                            .name
+                                                            .clone()
+                                                            .unwrap(),
+                                                        arguments: tool_call_delta
+                                                            .function
+                                                            .arguments
+                                                            .clone(),
+                                                    },
+                                                });
+                                            } else {
+                                                tool_calls[tool_call_delta.index]
+                                                    .function
+                                                    .arguments
+                                                    .push_str(&tool_call_delta.function.arguments);
+                                            }
+
+                                            yield Delta::ToolCallInput {
+                                                tool_call_id: tool_call_delta.id,
+                                                function: tool_call_delta.function,
+                                            }
                                         }
                                     }
                                 },
@@ -387,7 +397,8 @@ pub enum Delta {
         role: Option<Role>,
     },
     ToolCallInput {
-        tool_calls: Vec<streaming::ToolCall>,
+        tool_call_id: Option<String>,
+        function: streaming::Function,
     },
     ToolCallOutput {
         tool_call_id: String,
