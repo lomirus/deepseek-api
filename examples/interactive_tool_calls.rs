@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use colored::Colorize;
+use deepseek_api::AsyncIteratorNext;
 use deepseek_api::{Client, Delta, Function, Model};
-use futures::StreamExt;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,8 @@ async fn main() {
     let mut mode = State::UserInput;
     loop {
         mode.transition_to(State::UserInput);
-        let mut stream = client.streaming_chat(&input()).await;
+        let prompt = input();
+        let mut stream = client.streaming_chat(&prompt).await;
 
         while let Some(delta) = stream.next().await {
             use Delta::*;

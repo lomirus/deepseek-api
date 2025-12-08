@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use colored::Colorize;
+use deepseek_api::AsyncIteratorNext;
 use deepseek_api::{Client, Delta, Model};
-use futures::StreamExt;
 
 #[tokio::main]
 async fn main() {

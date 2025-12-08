@@ -1,10 +1,14 @@
+#![feature(gen_blocks)]
+#![feature(async_iterator)]
+
 mod request;
 mod response;
 
-use async_stream::stream;
-use futures::{StreamExt, stream::BoxStream};
+use std::{async_iter::AsyncIterator, pin::Pin};
+
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
+use std::future::poll_fn;
 
 use crate::{
     request::{ChatCompletionRequest, Thinking},
@@ -184,7 +188,10 @@ impl Client {
     }
 
     #[must_use]
-    pub async fn streaming_chat(&mut self, message: &str) -> BoxStream<'_, Delta> {
+    pub async fn streaming_chat(
+        &mut self,
+        message: &str,
+    ) -> Pin<Box<impl AsyncIterator<Item = Delta>>> {
         self.context.push(
             request::message::User {
                 name: None,
@@ -195,7 +202,7 @@ impl Client {
 
         let mut finish_reason: Option<FinishReason> = None;
 
-        let stream = stream! {
+        Box::pin(async gen move {
             loop {
                 let client = reqwest::Client::new();
                 let mut resp = client
@@ -251,10 +258,15 @@ impl Client {
                                         assistant_msg.content.push_str(content);
                                     }
                                     if let Some(ref reasoning_content) = reasoning_content {
-                                        assistant_msg.reasoning_content.get_or_insert_default().push_str(reasoning_content);
+                                        assistant_msg
+                                            .reasoning_content
+                                            .get_or_insert_default()
+                                            .push_str(reasoning_content);
                                     }
-                                },
-                                streaming::Delta::ToolCall { tool_calls: tool_calls_delta } => {
+                                }
+                                streaming::Delta::ToolCall {
+                                    tool_calls: tool_calls_delta,
+                                } => {
                                     assert_eq!(tool_calls_delta.len(), 1);
                                     let tool_call_delta = &tool_calls_delta[0];
                                     if tool_call_delta.index == tool_calls.len() {
@@ -265,7 +277,7 @@ impl Client {
                                             .arguments
                                             .push_str(&tool_call_delta.function.arguments);
                                     }
-                                },
+                                }
                             }
 
                             if let Some(fr) = choice.finish_reason {
@@ -287,24 +299,29 @@ impl Client {
                                             role,
                                         }
                                     }
-                                },
-                                streaming::Delta::ToolCall {
-                                    tool_calls
-                                } => yield Delta::ToolCallInput { tool_calls },
+                                }
+                                streaming::Delta::ToolCall { tool_calls } => {
+                                    yield Delta::ToolCallInput { tool_calls }
+                                }
                             }
                         }
                     }
                 }
 
                 if !tool_calls.is_empty() {
-                    assistant_msg.tool_calls = Some(tool_calls.iter().map(|tool_call| request::message::ToolCall {
-                        r#type: tool_call.r#type.clone().unwrap(),
-                        id: tool_call.id.clone().unwrap(),
-                        function: request::message::Function {
-                            name: tool_call.function.name.clone().unwrap(),
-                            arguments: tool_call.function.arguments.clone()
-                        },
-                    }).collect());
+                    assistant_msg.tool_calls = Some(
+                        tool_calls
+                            .iter()
+                            .map(|tool_call| request::message::ToolCall {
+                                r#type: tool_call.r#type.clone().unwrap(),
+                                id: tool_call.id.clone().unwrap(),
+                                function: request::message::Function {
+                                    name: tool_call.function.name.clone().unwrap(),
+                                    arguments: tool_call.function.arguments.clone(),
+                                },
+                            })
+                            .collect(),
+                    );
                 }
 
                 self.context.push(assistant_msg.into());
@@ -314,8 +331,10 @@ impl Client {
                         for tool_call in tool_calls {
                             let tool_call_id = tool_call.id.unwrap();
                             if self.context.iter().any(|msg| match msg {
-                                request::message::Message::Tool(tool) => tool.tool_call_id == tool_call_id,
-                                _ => false
+                                request::message::Message::Tool(tool) => {
+                                    tool.tool_call_id == tool_call_id
+                                }
+                                _ => false,
                             }) {
                                 continue;
                             }
@@ -333,19 +352,20 @@ impl Client {
                                 content: content.clone(),
                             };
 
-                            self.context.push(request::message::Tool {
-                                tool_call_id,
-                                content,
-                            }.into());
+                            self.context.push(
+                                request::message::Tool {
+                                    tool_call_id,
+                                    content,
+                                }
+                                .into(),
+                            );
                         }
-                    },
+                    }
                     None => unreachable!(),
-                    _ => break
+                    _ => break,
                 }
             }
-        };
-
-        stream.boxed()
+        })
     }
 
     #[must_use]
@@ -398,3 +418,14 @@ pub enum ResponseFormat {
     Text,
     JsonObject,
 }
+
+pub trait AsyncIteratorNext: AsyncIterator {
+    fn next(&mut self) -> impl std::future::Future<Output = Option<Self::Item>> + Send
+    where
+        Self: Unpin + Send,
+    {
+        async { poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await }
+    }
+}
+
+impl<T: AsyncIterator> AsyncIteratorNext for T {}
