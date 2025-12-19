@@ -9,7 +9,6 @@ use crate::Model;
 pub struct ChatCompletionRequest {
     pub messages: Vec<message::Message>,
     pub model: Model,
-    pub thinking: Option<Thinking>,
     pub stream: bool,
 
     /// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
@@ -42,33 +41,6 @@ pub struct ChatCompletionRequest {
 
     /// A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for. A max of 128 functions are supported.
     pub tools: Vec<Tool>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Thinking {
-    pub r#type: ThinkingType,
-}
-
-impl Thinking {
-    pub const fn enabled() -> Self {
-        Thinking {
-            r#type: ThinkingType::Enabled,
-        }
-    }
-
-    pub const fn disabled() -> Self {
-        Thinking {
-            r#type: ThinkingType::Disabled,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub enum ThinkingType {
-    #[serde(rename = "enabled")]
-    Enabled,
-    #[serde(rename = "disabled")]
-    Disabled,
 }
 
 #[derive(Serialize, Deserialize)]

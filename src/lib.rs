@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::future::poll_fn;
 
 use crate::{
-    request::{ChatCompletionRequest, Thinking},
+    request::ChatCompletionRequest,
     response::{UserBalance, no_streaming, streaming, streaming::Chunk},
 };
 
@@ -42,7 +42,6 @@ pub enum Role {
 
 pub struct Client {
     pub model: Model,
-    pub thinking: Option<Thinking>,
     pub api_key: String,
 
     /// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
@@ -83,7 +82,6 @@ impl Client {
     pub fn new(model: Model, api_key: &str) -> Self {
         Self {
             model,
-            thinking: None,
             api_key: api_key.to_string(),
             frequency_penalty: None,
             max_tokens: None,
@@ -118,7 +116,6 @@ impl Client {
                     serde_json::to_string(&ChatCompletionRequest {
                         model: self.model.clone(),
                         messages: self.context.clone(),
-                        thinking: self.thinking.clone(),
                         stream: false,
                         frequency_penalty: self.frequency_penalty,
                         max_tokens: self.max_tokens,
@@ -214,7 +211,6 @@ impl Client {
                         serde_json::to_string(&ChatCompletionRequest {
                             model: self.model.clone(),
                             messages: self.context.clone(),
-                            thinking: self.thinking.clone(),
                             stream: true,
                             frequency_penalty: self.frequency_penalty,
                             response_format: self.response_format.clone().into(),
