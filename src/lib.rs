@@ -55,7 +55,7 @@ pub struct Client {
     pub max_tokens: Option<u32>,
 
     /// Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
-    pub presence_penalty: Option<f32>,
+    pub presence_penalty: f32,
 
     /// An object specifying the format that the model must output. Setting to { "type": "json_object" } enables JSON Output, which guarantees the message the model generates is valid JSON.
     ///
@@ -85,7 +85,7 @@ impl Client {
             api_key: api_key.to_string(),
             frequency_penalty: 0.0,
             max_tokens: None,
-            presence_penalty: None,
+            presence_penalty: 0.0,
             response_format: ResponseFormat::Text,
             temperature: 1.0,
             top_p: 1.0,
@@ -119,7 +119,7 @@ impl Client {
                         stream: false,
                         frequency_penalty: Some(self.frequency_penalty),
                         max_tokens: self.max_tokens,
-                        presence_penalty: self.presence_penalty,
+                        presence_penalty: Some(self.presence_penalty),
                         response_format: self.response_format.clone().into(),
                         temperature: self.temperature,
                         top_p: self.top_p,
@@ -215,7 +215,7 @@ impl Client {
                             frequency_penalty: Some(self.frequency_penalty),
                             response_format: self.response_format.clone().into(),
                             max_tokens: self.max_tokens,
-                            presence_penalty: self.presence_penalty,
+                            presence_penalty: Some(self.presence_penalty),
                             temperature: self.temperature,
                             top_p: self.top_p,
                             tools: self.tools.iter().map(|tool| tool.clone().into()).collect(),
