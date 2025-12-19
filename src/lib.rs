@@ -45,7 +45,7 @@ pub struct Client {
     pub api_key: String,
 
     /// Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
-    pub frequency_penalty: Option<f32>,
+    pub frequency_penalty: f32,
 
     /// The maximum number of tokens that can be generated in the chat completion.
     ///
@@ -83,7 +83,7 @@ impl Client {
         Self {
             model,
             api_key: api_key.to_string(),
-            frequency_penalty: None,
+            frequency_penalty: 0.0,
             max_tokens: None,
             presence_penalty: None,
             response_format: ResponseFormat::Text,
@@ -117,7 +117,7 @@ impl Client {
                         model: self.model.clone(),
                         messages: self.context.clone(),
                         stream: false,
-                        frequency_penalty: self.frequency_penalty,
+                        frequency_penalty: Some(self.frequency_penalty),
                         max_tokens: self.max_tokens,
                         presence_penalty: self.presence_penalty,
                         response_format: self.response_format.clone().into(),
@@ -212,7 +212,7 @@ impl Client {
                             model: self.model.clone(),
                             messages: self.context.clone(),
                             stream: true,
-                            frequency_penalty: self.frequency_penalty,
+                            frequency_penalty: Some(self.frequency_penalty),
                             response_format: self.response_format.clone().into(),
                             max_tokens: self.max_tokens,
                             presence_penalty: self.presence_penalty,
