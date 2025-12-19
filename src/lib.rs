@@ -71,7 +71,7 @@ pub struct Client {
     /// An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
     ///
     /// We generally recommend altering this or `temperature`` but not both.
-    pub top_p: Option<f32>,
+    pub top_p: f32,
 
     pub context: Vec<request::message::Message>,
 
@@ -90,7 +90,7 @@ impl Client {
             presence_penalty: None,
             response_format: ResponseFormat::Text,
             temperature: 1.0,
-            top_p: None,
+            top_p: 1.0,
             context: Vec::new(),
             tools: Vec::new(),
         }

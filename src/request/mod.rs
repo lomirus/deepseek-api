@@ -38,7 +38,7 @@ pub struct ChatCompletionRequest {
     /// An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
     ///
     /// We generally recommend altering this or `temperature`` but not both.
-    pub top_p: Option<f32>,
+    pub top_p: f32,
 
     /// A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for. A max of 128 functions are supported.
     pub tools: Vec<Tool>,
