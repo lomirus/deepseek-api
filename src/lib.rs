@@ -168,7 +168,7 @@ impl Client {
                     self.context.push(
                         request::message::Tool {
                             tool_call_id: tool_call.id.clone(),
-                            content: func(tool_call.function.arguments.clone()),
+                            content: func(tool_call.function.arguments.clone()).await,
                         }
                         .into(),
                     );
@@ -332,7 +332,7 @@ impl Client {
                                 .find(|tool| tool.name == tool_call.function.name.clone())
                                 .unwrap()
                                 .call;
-                            let content = call(tool_call.function.arguments);
+                            let content = call(tool_call.function.arguments).await;
 
                             yield Delta::ToolCallOutput {
                                 tool_call_id: tool_call_id.clone(),
@@ -375,7 +375,7 @@ pub struct Function {
     pub name: String,
     pub description: String,
     pub parameters: Schema,
-    pub call: fn(String) -> String,
+    pub call: fn(String) -> Pin<Box<dyn Future<Output = String> + Send>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

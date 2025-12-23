@@ -12,7 +12,7 @@ struct AddParamters {
     b: i32,
 }
 
-fn add(args: String) -> String {
+async fn add(args: String) -> String {
     let AddParamters { a, b } = serde_json::from_str(&args).unwrap();
     (a + b).to_string()
 }
@@ -60,7 +60,7 @@ async fn main() {
         name: "add".to_string(),
         description: "Adds two integers.".to_string(),
         parameters: schema_for!(AddParamters),
-        call: add,
+        call: |input: String| Box::pin(add(input)),
     }]
     .to_vec();
 
