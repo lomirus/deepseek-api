@@ -83,7 +83,7 @@ async fn main() {
                     reasoning_content, ..
                 } => {
                     mode.transition_to(State::Thinking);
-                    print!("{}", reasoning_content.black());
+                    print!("{}", reasoning_content.bright_black());
                 }
                 Content { content, .. } => {
                     mode.transition_to(State::Answer);

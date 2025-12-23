@@ -16,7 +16,7 @@ async fn main() {
             Delta::Thinking {
                 reasoning_content, ..
             } => {
-                print!("{}", reasoning_content.black());
+                print!("{}", reasoning_content.bright_black());
                 std::io::stdout().flush().unwrap();
             }
             Delta::Content { content, .. } => {
