@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ToolCallType;
+use crate::http::ToolCallType;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "role")]
@@ -64,7 +64,7 @@ impl From<Tool> for Message {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ToolCall {
-    pub r#type: ToolCallType,
+    pub(crate) r#type: ToolCallType,
     pub id: String,
     pub function: Function,
 }

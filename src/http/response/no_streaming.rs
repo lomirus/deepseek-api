@@ -2,8 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    Model, Role, ToolCallType,
-    response::fields::{FinishReason, Usage},
+    Model, Role,
+    http::{
+        ToolCallType,
+        response::fields::{FinishReason, Usage},
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]

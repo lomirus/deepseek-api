@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Model, Role, ToolCallType, response::fields::FinishReason};
+use crate::{
+    Model, Role,
+    http::{ToolCallType, response::fields::FinishReason},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Chunk {

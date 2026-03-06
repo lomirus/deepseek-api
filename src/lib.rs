@@ -1,8 +1,7 @@
 #![feature(gen_blocks)]
 #![feature(async_iterator)]
 
-mod request;
-mod response;
+mod http;
 
 use std::{async_iter::AsyncIterator, pin::Pin};
 
@@ -10,13 +9,13 @@ use schemars::Schema;
 use serde::{Deserialize, Serialize};
 use std::future::poll_fn;
 
-use crate::{
+use crate::http::{
     request::ChatCompletionRequest,
     response::{UserBalance, no_streaming, streaming, streaming::Chunk},
 };
 
-pub use request::message;
-pub use response::FinishReason;
+pub use http::request::message;
+pub use http::response::FinishReason;
 
 const BASE_URL: &str = "https://api.deepseek.com";
 
@@ -72,7 +71,7 @@ pub struct Client {
     /// We generally recommend altering this or `temperature`` but not both.
     pub top_p: f32,
 
-    pub context: Vec<request::message::Message>,
+    pub context: Vec<http::request::message::Message>,
 
     pub tools: Vec<Function>,
 }
@@ -94,9 +93,9 @@ impl Client {
         }
     }
 
-    pub async fn chat(&mut self, message: &str) -> Vec<request::message::Message> {
+    pub async fn chat(&mut self, message: &str) -> Vec<http::request::message::Message> {
         self.context.push(
-            request::message::User {
+            http::request::message::User {
                 name: None,
                 content: message.to_string(),
             }
@@ -136,17 +135,17 @@ impl Client {
             let choice = &resp.choices[0];
 
             self.context.push(
-                request::message::Assistant {
+                http::request::message::Assistant {
                     name: None,
                     content: choice.message.content.to_owned(),
                     reasoning_content: choice.message.reasoning_content.to_owned(),
                     tool_calls: choice.message.tool_calls.clone().map(|tool_calls| {
                         tool_calls
                             .iter()
-                            .map(|tool_call| request::message::ToolCall {
+                            .map(|tool_call| http::request::message::ToolCall {
                                 r#type: tool_call.r#type.clone(),
                                 id: tool_call.id.clone(),
-                                function: request::message::Function {
+                                function: http::request::message::Function {
                                     name: tool_call.function.name.clone(),
                                     arguments: tool_call.function.arguments.clone(),
                                 },
@@ -166,7 +165,7 @@ impl Client {
                         .unwrap()
                         .call;
                     self.context.push(
-                        request::message::Tool {
+                        http::request::message::Tool {
                             tool_call_id: tool_call.id.clone(),
                             content: func(tool_call.function.arguments.clone()).await,
                         }
@@ -190,7 +189,7 @@ impl Client {
         message: &str,
     ) -> Pin<Box<impl AsyncIterator<Item = Delta>>> {
         self.context.push(
-            request::message::User {
+            http::request::message::User {
                 name: None,
                 content: message.to_string(),
             }
@@ -226,7 +225,7 @@ impl Client {
                     .await
                     .unwrap();
 
-                let mut assistant_msg = request::message::Assistant {
+                let mut assistant_msg = http::request::message::Assistant {
                     name: None,
                     content: String::new(),
                     reasoning_content: None,
@@ -277,10 +276,10 @@ impl Client {
                                                 assistant_msg.tool_calls.get_or_insert_default();
 
                                             if tool_call_delta.index == tool_calls.len() {
-                                                tool_calls.push(request::message::ToolCall {
+                                                tool_calls.push(http::request::message::ToolCall {
                                                     r#type: tool_call_delta.r#type.clone().unwrap(),
                                                     id: tool_call_delta.id.clone().unwrap(),
-                                                    function: request::message::Function {
+                                                    function: http::request::message::Function {
                                                         name: tool_call_delta
                                                             .function
                                                             .name
@@ -318,7 +317,7 @@ impl Client {
                         for tool_call in assistant_msg.tool_calls.unwrap() {
                             let tool_call_id = tool_call.id;
                             if self.context.iter().any(|msg| match msg {
-                                request::message::Message::Tool(tool) => {
+                                http::request::message::Message::Tool(tool) => {
                                     tool.tool_call_id == tool_call_id
                                 }
                                 _ => false,
@@ -340,7 +339,7 @@ impl Client {
                             };
 
                             self.context.push(
-                                request::message::Tool {
+                                http::request::message::Tool {
                                     tool_call_id,
                                     content,
                                 }
@@ -376,12 +375,6 @@ pub struct Function {
     pub description: String,
     pub parameters: Schema,
     pub call: fn(String) -> Pin<Box<dyn Future<Output = String> + Send>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolCallType {
-    Function,
 }
 
 #[derive(Debug, Clone)]
