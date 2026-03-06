@@ -13,7 +13,7 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn roles(&self) -> Role {
+    pub fn role(&self) -> Role {
         match self {
             Self::System(_) => Role::System,
             Self::User(_) => Role::User,
