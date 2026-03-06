@@ -13,6 +13,20 @@ pub enum Message {
 }
 
 impl Message {
+    pub fn system(content: &str) -> Self {
+        Self::System(System {
+            name: None,
+            content: content.to_string(),
+        })
+    }
+
+    pub fn user(content: &str) -> Self {
+        Self::User(User {
+            name: None,
+            content: content.to_string(),
+        })
+    }
+
     pub fn role(&self) -> Role {
         match self {
             Self::System(_) => Role::System,
