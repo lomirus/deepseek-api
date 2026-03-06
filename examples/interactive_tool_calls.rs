@@ -2,7 +2,7 @@ use std::io::Write;
 
 use colored::Colorize;
 use deepseek_api::AsyncIteratorNext;
-use deepseek_api::{Client, Delta, Function, Model};
+use deepseek_api::{Client, Delta, Tool, Model};
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +56,7 @@ impl State {
 async fn main() {
     let api_key = std::env::var("DEEPSEEK_API_KEY").unwrap();
     let mut client = Client::new(Model::DeepSeekReasoner, &api_key);
-    client.tools = [Function {
+    client.tools = [Tool {
         name: "add".to_string(),
         description: "Adds two integers.".to_string(),
         parameters: schema_for!(AddParamters),

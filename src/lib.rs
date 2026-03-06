@@ -73,7 +73,7 @@ pub struct Client {
 
     pub context: Vec<http::request::message::Message>,
 
-    pub tools: Vec<Function>,
+    pub tools: Vec<Tool>,
 }
 
 impl Client {
@@ -370,7 +370,7 @@ impl Client {
 }
 
 #[derive(Clone)]
-pub struct Function {
+pub struct Tool {
     pub name: String,
     pub description: String,
     pub parameters: Schema,

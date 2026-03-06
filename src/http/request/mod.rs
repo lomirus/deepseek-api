@@ -54,8 +54,8 @@ pub enum Tool {
     },
 }
 
-impl From<crate::Function> for Tool {
-    fn from(value: crate::Function) -> Self {
+impl From<crate::Tool> for Tool {
+    fn from(value: crate::Tool) -> Self {
         Self::Function {
             name: value.name,
             description: value.description,
