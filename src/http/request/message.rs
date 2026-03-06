@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::http::ToolCallType;
+use crate::{Role, http::ToolCallType};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "role")]
@@ -10,6 +10,17 @@ pub enum Message {
     User(User),
     Assistant(Assistant),
     Tool(Tool),
+}
+
+impl Message {
+    pub fn roles(&self) -> Role {
+        match self {
+            Self::System(_) => Role::System,
+            Self::User(_) => Role::User,
+            Self::Assistant(_) => Role::Assistant,
+            Self::Tool(_) => Role::Tool,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
