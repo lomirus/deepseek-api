@@ -2,8 +2,8 @@ use std::io::Write;
 
 use colored::Colorize;
 use deepseek_api::AsyncIteratorNext;
-use deepseek_api::{Client, Delta, Tool, Model};
-use schemars::{JsonSchema, schema_for};
+use deepseek_api::{Client, Delta, Model, Tool};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(JsonSchema, Serialize, Deserialize)]
@@ -12,9 +12,9 @@ struct AddParamters {
     b: i32,
 }
 
-async fn add(args: String) -> String {
-    let AddParamters { a, b } = serde_json::from_str(&args).unwrap();
-    (a + b).to_string()
+async fn add(args: AddParamters) -> i32 {
+    let AddParamters { a, b } = args;
+    a + b
 }
 
 fn input() -> String {
@@ -56,13 +56,7 @@ impl State {
 async fn main() {
     let api_key = std::env::var("DEEPSEEK_API_KEY").unwrap();
     let mut client = Client::new(Model::DeepSeekReasoner, &api_key);
-    client.tools = [Tool {
-        name: "add".to_string(),
-        description: "Adds two integers.".to_string(),
-        parameters: schema_for!(AddParamters),
-        call: |input: String| Box::pin(add(input)),
-    }]
-    .to_vec();
+    client.tools = vec![Tool::new(add, "Adds two integers.")];
 
     // Example Input:
     //

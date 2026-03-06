@@ -54,12 +54,12 @@ pub enum Tool {
     },
 }
 
-impl From<crate::Tool> for Tool {
-    fn from(value: crate::Tool) -> Self {
+impl From<&crate::Tool> for Tool {
+    fn from(value: &crate::Tool) -> Self {
         Self::Function {
-            name: value.name,
-            description: value.description,
-            parameters: value.parameters,
+            name: value.name.clone(),
+            description: value.description.clone(),
+            parameters: value.parameters.clone(),
         }
     }
 }

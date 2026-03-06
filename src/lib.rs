@@ -5,8 +5,8 @@ mod http;
 
 use std::{async_iter::AsyncIterator, pin::Pin};
 
-use schemars::Schema;
-use serde::{Deserialize, Serialize};
+use schemars::{JsonSchema, Schema, schema_for};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::future::poll_fn;
 
 use crate::http::{
@@ -122,7 +122,7 @@ impl Client {
                         response_format: self.response_format.clone().into(),
                         temperature: self.temperature,
                         top_p: self.top_p,
-                        tools: self.tools.iter().map(|tool| tool.clone().into()).collect(),
+                        tools: self.tools.iter().map(|tool| tool.into()).collect(),
                     })
                     .unwrap(),
                 )
@@ -158,7 +158,7 @@ impl Client {
 
             if let Some(ref tool_calls) = choice.message.tool_calls {
                 for tool_call in tool_calls {
-                    let func = self
+                    let func = &self
                         .tools
                         .iter()
                         .find(|tool| tool.name == tool_call.function.name)
@@ -217,7 +217,7 @@ impl Client {
                             presence_penalty: Some(self.presence_penalty),
                             temperature: self.temperature,
                             top_p: self.top_p,
-                            tools: self.tools.iter().map(|tool| tool.clone().into()).collect(),
+                            tools: self.tools.iter().map(|tool| tool.into()).collect(),
                         })
                         .unwrap(),
                     )
@@ -325,7 +325,7 @@ impl Client {
                                 continue;
                             }
 
-                            let call = self
+                            let call = &self
                                 .tools
                                 .iter()
                                 .find(|tool| tool.name == tool_call.function.name.clone())
@@ -369,12 +369,38 @@ impl Client {
     }
 }
 
-#[derive(Clone)]
 pub struct Tool {
     pub name: String,
     pub description: String,
     pub parameters: Schema,
-    pub call: fn(String) -> Pin<Box<dyn Future<Output = String> + Send>>,
+    pub call: Box<dyn Fn(String) -> Pin<Box<dyn Future<Output = String> + Send>> + Send + Sync>,
+}
+
+impl Tool {
+    pub fn new<P, R, F, Func>(func: Func, description: &str) -> Self
+    where
+        P: JsonSchema + DeserializeOwned + Send + 'static,
+        R: Serialize + Send + 'static,
+        F: Future<Output = R> + Send + 'static,
+        Func: Fn(P) -> F + Clone + Send + Sync + 'static,
+    {
+        let func_full_path = std::any::type_name_of_val(&func);
+        let func_name = func_full_path.rsplit("::").next().unwrap_or(func_full_path);
+
+        Self {
+            name: func_name.to_string(),
+            description: description.to_string(),
+            parameters: schema_for!(P),
+            call: Box::new(move |args| {
+                let func_cloned = func.clone();
+                Box::pin(async move {
+                    let args: P = serde_json::from_str(&args).unwrap();
+                    let result: R = func_cloned(args).await;
+                    serde_json::to_string(&result).unwrap()
+                })
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
