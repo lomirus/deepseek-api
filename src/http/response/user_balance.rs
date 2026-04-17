@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 pub struct UserBalance {
     /// Whether the user's balance is sufficient for API calls.
     pub is_available: bool,
-    pub balance_infos: Vec<BalacneInfo>,
+    pub balance_infos: Vec<BalanceInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct BalacneInfo {
+pub struct BalanceInfo {
     /// The currency of the balance.
     pub currency: Currency,
     /// The total available balance, including the granted balance and the topped-up balance.
