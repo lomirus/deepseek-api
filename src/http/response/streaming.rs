@@ -33,20 +33,20 @@ pub enum Delta {
         role: Option<Role>,
     },
     ToolCall {
-        tool_calls: Vec<ToolCall>,
+        tool_calls: Vec<ToolCallDelta>,
     },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ToolCall {
+pub struct ToolCallDelta {
     pub r#type: Option<ToolCallType>,
     pub id: Option<String>,
     pub index: usize,
-    pub function: Function,
+    pub function: FunctionDelta,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Function {
+pub struct FunctionDelta {
     pub name: Option<String>,
     pub arguments: String,
 }
