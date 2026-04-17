@@ -273,7 +273,8 @@ impl Client {
 
                                             yield Delta::ToolCallInput {
                                                 tool_call_id: tool_call_delta.id,
-                                                function: tool_call_delta.function,
+                                                name: tool_call_delta.function.name,
+                                                arguments: tool_call_delta.function.arguments,
                                             }
                                         }
                                     }

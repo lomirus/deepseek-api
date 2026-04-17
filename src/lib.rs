@@ -12,8 +12,6 @@ use std::{async_iter::AsyncIterator, future::poll_fn, pin::Pin};
 
 use serde::{Deserialize, Serialize};
 
-use crate::http::response::streaming;
-
 pub use client::Client;
 pub use deepseek_api_macros::tool;
 pub use http::response::FinishReason;
@@ -58,7 +56,8 @@ pub enum Delta {
     },
     ToolCallInput {
         tool_call_id: Option<String>,
-        function: streaming::Function,
+        name: Option<String>,
+        arguments: String,
     },
     ToolCallOutput {
         tool_call_id: String,

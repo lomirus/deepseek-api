@@ -78,7 +78,8 @@ async fn main() {
                 }
                 ToolCallInput {
                     tool_call_id,
-                    function,
+                    name,
+                    arguments,
                 } => {
                     if let Some(id) = tool_call_id {
                         match mode {
@@ -89,12 +90,12 @@ async fn main() {
                             "{}{} = {}{}{}",
                             "@".blue(),
                             id.blue(),
-                            function.name.as_ref().unwrap().yellow(),
+                            name.as_ref().unwrap().yellow(),
                             "(".yellow(),
-                            function.arguments
+                            arguments
                         );
                     } else {
-                        print!("{}", function.arguments);
+                        print!("{}", arguments);
                     }
                 }
                 ToolCallOutput {
