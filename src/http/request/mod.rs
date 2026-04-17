@@ -1,5 +1,3 @@
-pub mod message;
-
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +5,7 @@ use crate::Model;
 
 #[derive(Serialize)]
 pub struct ChatCompletionRequest {
-    pub messages: Vec<message::Message>,
+    pub messages: Vec<crate::message::Message>,
     pub model: Model,
     pub stream: bool,
 

@@ -5,6 +5,7 @@ extern crate self as deepseek_api;
 
 mod client;
 mod http;
+pub mod message;
 mod tool;
 
 use std::{async_iter::AsyncIterator, future::poll_fn, pin::Pin};
@@ -15,7 +16,6 @@ use crate::http::response::streaming;
 
 pub use client::Client;
 pub use deepseek_api_macros::tool;
-pub use http::request::message;
 pub use http::response::FinishReason;
 pub use tool::{Tool, ToolFuture};
 

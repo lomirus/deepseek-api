@@ -1,9 +1,8 @@
 use std::{async_iter::AsyncIterator, pin::Pin};
 
 use crate::{
-    Delta, FinishReason, Model, ResponseFormat, Tool,
+    Delta, FinishReason, Model, ResponseFormat, Tool, message,
     http::{
-        self,
         request::ChatCompletionRequest,
         response::{
             UserBalance, no_streaming,
@@ -46,7 +45,7 @@ pub struct Client {
     /// We generally recommend altering this or `temperature` but not both.
     pub top_p: f32,
 
-    pub context: Vec<http::request::message::Message>,
+    pub context: Vec<message::Message>,
 
     pub tools: Vec<Tool>,
 }
@@ -68,9 +67,9 @@ impl Client {
         }
     }
 
-    pub async fn chat(&mut self, message: &str) -> Vec<http::request::message::Message> {
+    pub async fn chat(&mut self, message: &str) -> Vec<message::Message> {
         self.context.push(
-            http::request::message::User {
+            message::User {
                 name: None,
                 content: message.to_string(),
             }
@@ -110,17 +109,17 @@ impl Client {
             let choice = &resp.choices[0];
 
             self.context.push(
-                http::request::message::Assistant {
+                message::Assistant {
                     name: None,
                     content: choice.message.content.to_owned(),
                     reasoning_content: choice.message.reasoning_content.to_owned(),
                     tool_calls: choice.message.tool_calls.clone().map(|tool_calls| {
                         tool_calls
                             .iter()
-                            .map(|tool_call| http::request::message::ToolCall {
+                            .map(|tool_call| message::ToolCall {
                                 r#type: tool_call.r#type.clone(),
                                 id: tool_call.id.clone(),
-                                function: http::request::message::Function {
+                                function: message::Function {
                                     name: tool_call.function.name.clone(),
                                     arguments: tool_call.function.arguments.clone(),
                                 },
@@ -139,7 +138,7 @@ impl Client {
                         .find(|tool| tool.name == tool_call.function.name.as_str())
                         .unwrap();
                     self.context.push(
-                        http::request::message::Tool {
+                        message::Tool {
                             tool_call_id: tool_call.id.clone(),
                             content: (tool.call)(tool_call.function.arguments.clone()).await,
                         }
@@ -163,7 +162,7 @@ impl Client {
         message: &str,
     ) -> Pin<Box<impl AsyncIterator<Item = Delta>>> {
         self.context.push(
-            http::request::message::User {
+            message::User {
                 name: None,
                 content: message.to_string(),
             }
@@ -199,7 +198,7 @@ impl Client {
                     .await
                     .unwrap();
 
-                let mut assistant_msg = http::request::message::Assistant {
+                let mut assistant_msg = message::Assistant {
                     name: None,
                     content: String::new(),
                     reasoning_content: None,
@@ -250,10 +249,10 @@ impl Client {
                                                 assistant_msg.tool_calls.get_or_insert_default();
 
                                             if tool_call_delta.index == tool_calls.len() {
-                                                tool_calls.push(http::request::message::ToolCall {
+                                                tool_calls.push(message::ToolCall {
                                                     r#type: tool_call_delta.r#type.clone().unwrap(),
                                                     id: tool_call_delta.id.clone().unwrap(),
-                                                    function: http::request::message::Function {
+                                                    function: message::Function {
                                                         name: tool_call_delta
                                                             .function
                                                             .name
@@ -291,7 +290,7 @@ impl Client {
                         for tool_call in assistant_msg.tool_calls.unwrap() {
                             let tool_call_id = tool_call.id;
                             if self.context.iter().any(|msg| match msg {
-                                http::request::message::Message::Tool(tool) => {
+                                message::Message::Tool(tool) => {
                                     tool.tool_call_id == tool_call_id
                                 }
                                 _ => false,
@@ -312,7 +311,7 @@ impl Client {
                             };
 
                             self.context.push(
-                                http::request::message::Tool {
+                                message::Tool {
                                     tool_call_id,
                                     content,
                                 }
