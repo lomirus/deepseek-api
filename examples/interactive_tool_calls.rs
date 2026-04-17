@@ -2,18 +2,11 @@ use std::io::Write;
 
 use colored::Colorize;
 use deepseek_api::AsyncIteratorNext;
-use deepseek_api::{Client, Delta, Model, Tool};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use deepseek_api::{Client, Delta, Model, tool};
 
-#[derive(JsonSchema, Serialize, Deserialize)]
-struct AddParamters {
-    a: i32,
-    b: i32,
-}
-
-async fn add(args: AddParamters) -> i32 {
-    let AddParamters { a, b } = args;
+#[tool]
+/// Adds two integers.
+async fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
@@ -56,7 +49,7 @@ impl State {
 async fn main() {
     let api_key = std::env::var("DEEPSEEK_API_KEY").unwrap();
     let mut client = Client::new(Model::DeepSeekReasoner, &api_key);
-    client.tools = vec![Tool::new(add, "Adds two integers.")];
+    client.tools = vec![ADD];
 
     // Example Input:
     //

@@ -1,23 +1,38 @@
 #![feature(gen_blocks)]
 #![feature(async_iterator)]
 
+extern crate self as deepseek_api;
+
 mod http;
 
-use std::{async_iter::AsyncIterator, pin::Pin};
+use std::{
+    async_iter::AsyncIterator,
+    future::{Future, poll_fn},
+    pin::Pin,
+};
 
-use schemars::{JsonSchema, Schema, schema_for};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::future::poll_fn;
+use schemars::Schema;
+use serde::{Deserialize, Serialize};
 
 use crate::http::{
     request::ChatCompletionRequest,
     response::{UserBalance, no_streaming, streaming, streaming::Chunk},
 };
 
+pub use deepseek_api_macros::tool;
 pub use http::request::message;
 pub use http::response::FinishReason;
 
+#[doc(hidden)]
+pub mod __private {
+    pub use schemars;
+    pub use serde;
+    pub use serde_json;
+}
+
 const BASE_URL: &str = "https://api.deepseek.com";
+
+pub type ToolFuture = Pin<Box<dyn Future<Output = String> + Send + 'static>>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Model {
@@ -158,16 +173,15 @@ impl Client {
 
             if let Some(ref tool_calls) = choice.message.tool_calls {
                 for tool_call in tool_calls {
-                    let func = &self
+                    let tool = self
                         .tools
                         .iter()
-                        .find(|tool| tool.name == tool_call.function.name)
-                        .unwrap()
-                        .call;
+                        .find(|tool| tool.name == tool_call.function.name.as_str())
+                        .unwrap();
                     self.context.push(
                         http::request::message::Tool {
                             tool_call_id: tool_call.id.clone(),
-                            content: func(tool_call.function.arguments.clone()).await,
+                            content: (tool.call)(tool_call.function.arguments.clone()).await,
                         }
                         .into(),
                     );
@@ -325,13 +339,12 @@ impl Client {
                                 continue;
                             }
 
-                            let call = &self
+                            let tool = self
                                 .tools
                                 .iter()
-                                .find(|tool| tool.name == tool_call.function.name.clone())
-                                .unwrap()
-                                .call;
-                            let content = call(tool_call.function.arguments).await;
+                                .find(|tool| tool.name == tool_call.function.name.as_str())
+                                .unwrap();
+                            let content = (tool.call)(tool_call.function.arguments).await;
 
                             yield Delta::ToolCallOutput {
                                 tool_call_id: tool_call_id.clone(),
@@ -369,36 +382,28 @@ impl Client {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Tool {
-    pub name: String,
-    pub description: String,
-    pub parameters: Schema,
-    pub call: Box<dyn Fn(String) -> Pin<Box<dyn Future<Output = String> + Send>> + Send + Sync>,
+    pub(crate) name: &'static str,
+    pub(crate) description: &'static str,
+    pub(crate) parameters: fn() -> &'static Schema,
+    pub(crate) call: fn(String) -> ToolFuture,
 }
 
 impl Tool {
-    pub fn new<P, R, F, Func>(func: Func, description: &str) -> Self
-    where
-        P: JsonSchema + DeserializeOwned + Send + 'static,
-        R: Serialize + Send + 'static,
-        F: Future<Output = R> + Send + 'static,
-        Func: Fn(P) -> F + Clone + Send + Sync + 'static,
-    {
-        let func_full_path = std::any::type_name_of_val(&func);
-        let func_name = func_full_path.rsplit("::").next().unwrap_or(func_full_path);
-
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn new(
+        name: &'static str,
+        description: &'static str,
+        parameters: fn() -> &'static Schema,
+        call: fn(String) -> ToolFuture,
+    ) -> Self {
         Self {
-            name: func_name.to_string(),
-            description: description.to_string(),
-            parameters: schema_for!(P),
-            call: Box::new(move |args| {
-                let func_cloned = func.clone();
-                Box::pin(async move {
-                    let args: P = serde_json::from_str(&args).unwrap();
-                    let result: R = func_cloned(args).await;
-                    serde_json::to_string(&result).unwrap()
-                })
-            }),
+            name,
+            description,
+            parameters,
+            call,
         }
     }
 }
@@ -439,3 +444,71 @@ pub trait AsyncIteratorNext: AsyncIterator {
 }
 
 impl<T: AsyncIterator> AsyncIteratorNext for T {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tool]
+    /// Adds two integers.
+    async fn add(a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    #[tool]
+    /// First line.
+    /// Second line.
+    async fn multiline() -> &'static str {
+        "ok"
+    }
+
+    #[tool]
+    /// Returns a constant.
+    async fn no_args() -> i32 {
+        42
+    }
+
+    #[tokio::test]
+    async fn name_and_description_are_set() {
+        assert_eq!(ADD.name, "add");
+        assert_eq!(ADD.description, "Adds two integers.");
+    }
+
+    #[tokio::test]
+    async fn call_invokes_original_function() {
+        let result = (ADD.call)(r#"{"a":3,"b":4}"#.to_string()).await;
+        assert_eq!(result, "7");
+    }
+
+    #[tokio::test]
+    async fn multiline_doc_strips_per_line_leading_space() {
+        assert_eq!(MULTILINE.description, "First line.\nSecond line.");
+    }
+
+    #[tokio::test]
+    async fn no_args_function_accepts_empty_object() {
+        assert_eq!(NO_ARGS.name, "no_args");
+        let result = (NO_ARGS.call)("{}".to_string()).await;
+        assert_eq!(result, "42");
+    }
+
+    #[tokio::test]
+    async fn original_function_is_still_callable() {
+        assert_eq!(add(1, 2).await, 3);
+    }
+
+    #[test]
+    fn parameters_schema_lists_fields() {
+        let schema = serde_json::to_value((ADD.parameters)()).unwrap();
+        let props = schema.get("properties").expect("schema has properties");
+        assert!(props.get("a").is_some());
+        assert!(props.get("b").is_some());
+    }
+
+    #[test]
+    fn tool_const_is_copy() {
+        let a = ADD;
+        let b = ADD;
+        assert_eq!(a.name, b.name);
+    }
+}

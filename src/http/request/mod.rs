@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Model;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct ChatCompletionRequest {
     pub messages: Vec<message::Message>,
     pub model: Model,
@@ -43,23 +43,23 @@ pub struct ChatCompletionRequest {
     pub tools: Vec<Tool>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(tag = "type", content = "function")]
 #[serde(rename_all = "snake_case")]
 pub enum Tool {
     Function {
-        name: String,
-        description: String,
-        parameters: Schema,
+        name: &'static str,
+        description: &'static str,
+        parameters: &'static Schema,
     },
 }
 
 impl From<&crate::Tool> for Tool {
     fn from(value: &crate::Tool) -> Self {
         Self::Function {
-            name: value.name.clone(),
-            description: value.description.clone(),
-            parameters: value.parameters.clone(),
+            name: value.name,
+            description: value.description,
+            parameters: (value.parameters)(),
         }
     }
 }

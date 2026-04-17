@@ -3,7 +3,12 @@ name = "deepseek-api"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = ["deepseek-api-macros"]
+resolver = "3"
+
 [dependencies]
+deepseek-api-macros = { path = "deepseek-api-macros" }
 reqwest = { version = "0.12.24", features = ["json"] }
 tokio = { version = "1.48.0" }
 serde = { version = "1.0.228", features = ["derive"] }
