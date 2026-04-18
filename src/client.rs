@@ -67,6 +67,31 @@ impl Client {
         }
     }
 
+    async fn send_chat_request(&self, stream: bool) -> reqwest::Response {
+        let body = ChatCompletionRequest {
+            model: self.model.clone(),
+            messages: self.context.iter().map(request::Message::from).collect(),
+            stream,
+            frequency_penalty: Some(self.frequency_penalty),
+            max_tokens: self.max_tokens,
+            presence_penalty: Some(self.presence_penalty),
+            response_format: self.response_format.clone().into(),
+            temperature: self.temperature,
+            top_p: self.top_p,
+            tools: self.tools.iter().map(|tool| tool.into()).collect(),
+        };
+
+        reqwest::Client::new()
+            .post(format!("{BASE_URL}/chat/completions"))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .body(serde_json::to_string(&body).unwrap())
+            .send()
+            .await
+            .unwrap()
+    }
+
     pub async fn chat(&mut self, message: &str) -> Vec<message::Message> {
         self.context.push(
             message::User {
@@ -79,30 +104,7 @@ impl Client {
         let start_index = self.context.len();
 
         loop {
-            let client = reqwest::Client::new();
-            let resp = client
-                .post(format!("{BASE_URL}/chat/completions"))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("Authorization", format!("Bearer {}", self.api_key))
-                .body(
-                    serde_json::to_string(&ChatCompletionRequest {
-                        model: self.model.clone(),
-                        messages: self.context.iter().map(request::Message::from).collect(),
-                        stream: false,
-                        frequency_penalty: Some(self.frequency_penalty),
-                        max_tokens: self.max_tokens,
-                        presence_penalty: Some(self.presence_penalty),
-                        response_format: self.response_format.clone().into(),
-                        temperature: self.temperature,
-                        top_p: self.top_p,
-                        tools: self.tools.iter().map(|tool| tool.into()).collect(),
-                    })
-                    .unwrap(),
-                )
-                .send()
-                .await
-                .unwrap();
+            let resp = self.send_chat_request(false).await;
             let resp: no_streaming::Response = resp.json().await.unwrap();
 
             assert_eq!(resp.choices.len(), 1);
@@ -172,30 +174,7 @@ impl Client {
 
         Box::pin(async gen move {
             loop {
-                let client = reqwest::Client::new();
-                let mut resp = client
-                    .post(format!("{BASE_URL}/chat/completions"))
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .header("Authorization", format!("Bearer {}", self.api_key))
-                    .body(
-                        serde_json::to_string(&ChatCompletionRequest {
-                            model: self.model.clone(),
-                            messages: self.context.iter().map(request::Message::from).collect(),
-                            stream: true,
-                            frequency_penalty: Some(self.frequency_penalty),
-                            response_format: self.response_format.clone().into(),
-                            max_tokens: self.max_tokens,
-                            presence_penalty: Some(self.presence_penalty),
-                            temperature: self.temperature,
-                            top_p: self.top_p,
-                            tools: self.tools.iter().map(|tool| tool.into()).collect(),
-                        })
-                        .unwrap(),
-                    )
-                    .send()
-                    .await
-                    .unwrap();
+                let mut resp = self.send_chat_request(true).await;
 
                 let mut assistant_msg = message::Assistant {
                     name: None,
