@@ -1,11 +1,11 @@
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
-use crate::Model;
+use crate::{Model, http::ToolCallType};
 
 #[derive(Serialize)]
 pub struct ChatCompletionRequest {
-    pub messages: Vec<crate::message::Message>,
+    pub messages: Vec<Message>,
     pub model: Model,
     pub stream: bool,
 
@@ -39,6 +39,83 @@ pub struct ChatCompletionRequest {
 
     /// A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for. A max of 128 functions are supported.
     pub tools: Vec<Tool>,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "role", rename_all = "snake_case")]
+pub enum Message {
+    System {
+        name: Option<String>,
+        content: String,
+    },
+    User {
+        name: Option<String>,
+        content: String,
+    },
+    Assistant {
+        name: Option<String>,
+        content: String,
+        reasoning_content: Option<String>,
+        tool_calls: Option<Vec<ToolCall>>,
+    },
+    Tool {
+        tool_call_id: String,
+        content: String,
+    },
+}
+
+impl From<&crate::message::Message> for Message {
+    fn from(value: &crate::message::Message) -> Self {
+        match value {
+            crate::message::Message::System(s) => Message::System {
+                name: s.name.clone(),
+                content: s.content.clone(),
+            },
+            crate::message::Message::User(u) => Message::User {
+                name: u.name.clone(),
+                content: u.content.clone(),
+            },
+            crate::message::Message::Assistant(a) => Message::Assistant {
+                name: a.name.clone(),
+                content: a.content.clone(),
+                reasoning_content: a.reasoning_content.clone(),
+                tool_calls: a
+                    .tool_calls
+                    .as_ref()
+                    .map(|tcs| tcs.iter().map(ToolCall::from).collect()),
+            },
+            crate::message::Message::Tool(t) => Message::Tool {
+                tool_call_id: t.tool_call_id.clone(),
+                content: t.content.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct ToolCall {
+    pub r#type: ToolCallType,
+    pub id: String,
+    pub function: Function,
+}
+
+impl From<&crate::message::ToolCall> for ToolCall {
+    fn from(value: &crate::message::ToolCall) -> Self {
+        Self {
+            r#type: ToolCallType::Function,
+            id: value.id.clone(),
+            function: Function {
+                name: value.function.name.clone(),
+                arguments: value.function.arguments.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct Function {
+    pub name: String,
+    pub arguments: String,
 }
 
 #[derive(Serialize)]

@@ -3,7 +3,7 @@ use std::{async_iter::AsyncIterator, pin::Pin};
 use crate::{
     Delta, FinishReason, Model, ResponseFormat, Tool, message,
     http::{
-        request::ChatCompletionRequest,
+        request::{self, ChatCompletionRequest},
         response::{
             UserBalance, no_streaming,
             streaming::{self, Chunk},
@@ -88,7 +88,7 @@ impl Client {
                 .body(
                     serde_json::to_string(&ChatCompletionRequest {
                         model: self.model.clone(),
-                        messages: self.context.clone(),
+                        messages: self.context.iter().map(request::Message::from).collect(),
                         stream: false,
                         frequency_penalty: Some(self.frequency_penalty),
                         max_tokens: self.max_tokens,
@@ -117,7 +117,6 @@ impl Client {
                         tool_calls
                             .iter()
                             .map(|tool_call| message::ToolCall {
-                                r#type: tool_call.r#type.clone(),
                                 id: tool_call.id.clone(),
                                 function: message::Function {
                                     name: tool_call.function.name.clone(),
@@ -182,7 +181,7 @@ impl Client {
                     .body(
                         serde_json::to_string(&ChatCompletionRequest {
                             model: self.model.clone(),
-                            messages: self.context.clone(),
+                            messages: self.context.iter().map(request::Message::from).collect(),
                             stream: true,
                             frequency_penalty: Some(self.frequency_penalty),
                             response_format: self.response_format.clone().into(),
@@ -250,7 +249,6 @@ impl Client {
 
                                             if tool_call_delta.index == tool_calls.len() {
                                                 tool_calls.push(message::ToolCall {
-                                                    r#type: tool_call_delta.r#type.clone().unwrap(),
                                                     id: tool_call_delta.id.clone().unwrap(),
                                                     function: message::Function {
                                                         name: tool_call_delta
