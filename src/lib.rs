@@ -5,6 +5,7 @@ extern crate self as deepseek_api;
 
 mod api;
 mod client;
+mod delta;
 pub mod message;
 mod tool;
 
@@ -12,9 +13,10 @@ use std::{async_iter::AsyncIterator, future::poll_fn, pin::Pin};
 
 use serde::{Deserialize, Serialize};
 
+pub use api::response::FinishReason;
 pub use client::Client;
 pub use deepseek_api_macros::tool;
-pub use api::response::FinishReason;
+pub use delta::Delta;
 pub use tool::{Tool, ToolFuture};
 
 #[doc(hidden)]
@@ -42,27 +44,6 @@ pub enum Role {
     Assistant,
     #[serde(rename = "tool")]
     Tool,
-}
-
-#[derive(Debug, Clone)]
-pub enum Delta {
-    Thinking {
-        reasoning_content: String,
-        role: Option<Role>,
-    },
-    Content {
-        content: String,
-        role: Option<Role>,
-    },
-    ToolCallInput {
-        tool_call_id: Option<String>,
-        name: Option<String>,
-        arguments: String,
-    },
-    ToolCallOutput {
-        tool_call_id: String,
-        content: String,
-    },
 }
 
 #[derive(Clone)]
