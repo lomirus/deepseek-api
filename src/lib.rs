@@ -3,8 +3,8 @@
 
 extern crate self as deepseek_api;
 
+mod api;
 mod client;
-mod http;
 pub mod message;
 mod tool;
 
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 pub use client::Client;
 pub use deepseek_api_macros::tool;
-pub use http::response::FinishReason;
+pub use api::response::FinishReason;
 pub use tool::{Tool, ToolFuture};
 
 #[doc(hidden)]

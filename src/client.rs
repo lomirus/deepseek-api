@@ -2,7 +2,7 @@ use std::{async_iter::AsyncIterator, pin::Pin};
 
 use crate::{
     Delta, FinishReason, Model, ResponseFormat, Tool, message,
-    http::{
+    api::{
         request::{self, ChatCompletionRequest},
         response::{
             UserBalance, no_streaming,

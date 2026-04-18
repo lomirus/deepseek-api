@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::{
     Model, Role,
-    http::{ToolCallType, response::fields::FinishReason},
+    api::{ToolCallType, response::fields::FinishReason},
 };
 
 #[derive(Serialize, Deserialize, Debug)]

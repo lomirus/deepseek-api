@@ -1,7 +1,7 @@
 use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Model, http::ToolCallType};
+use crate::{Model, api::ToolCallType};
 
 #[derive(Serialize)]
 pub struct ChatCompletionRequest {
