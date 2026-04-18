@@ -185,11 +185,8 @@ impl Client {
 
                 while let Some(chunk) = resp.chunk().await.unwrap() {
                     let s = String::from_utf8(chunk.to_vec()).unwrap();
-                    for data in s.trim().split("\n\n").map(|s| s[6..].to_string()) {
-                        if data == "[DONE]" {
-                            break;
-                        }
-                        let chunk: Chunk = serde_json::from_str(&data).unwrap();
+                    for data in crate::stream::parse_sse_data_frames(&s) {
+                        let chunk: Chunk = serde_json::from_str(data).unwrap();
                         for choice in chunk.choices {
                             match choice.finish_reason {
                                 Some(fr) => finish_reason = Some(fr),
