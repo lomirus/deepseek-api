@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Role, api};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Message {
     System(System),
     User(User),
@@ -33,7 +35,7 @@ impl Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct System {
     pub name: Option<String>,
     pub content: String,
@@ -45,7 +47,7 @@ impl From<System> for Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct User {
     pub name: Option<String>,
     pub content: String,
@@ -57,7 +59,7 @@ impl From<User> for Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Assistant {
     pub name: Option<String>,
     pub content: String,
@@ -71,7 +73,7 @@ impl From<Assistant> for Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Tool {
     pub tool_call_id: String,
     pub content: String,
@@ -83,13 +85,13 @@ impl From<Tool> for Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolCall {
     pub id: String,
     pub function: Function,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Function {
     pub name: String,
     pub arguments: String,
