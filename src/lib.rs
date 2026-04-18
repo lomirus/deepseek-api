@@ -5,6 +5,7 @@ extern crate self as deepseek_api;
 
 mod api;
 mod client;
+mod config;
 mod delta;
 pub mod message;
 mod tool;
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 pub use api::response::FinishReason;
 pub use client::Client;
+pub use config::{Model, ResponseFormat};
 pub use deepseek_api_macros::tool;
 pub use delta::Delta;
 pub use tool::{Tool, ToolFuture};
@@ -24,14 +26,6 @@ pub mod __private {
     pub use schemars;
     pub use serde;
     pub use serde_json;
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Model {
-    #[serde(rename = "deepseek-chat")]
-    DeepSeekChat,
-    #[serde(rename = "deepseek-reasoner")]
-    DeepSeekReasoner,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -44,12 +38,6 @@ pub enum Role {
     Assistant,
     #[serde(rename = "tool")]
     Tool,
-}
-
-#[derive(Clone)]
-pub enum ResponseFormat {
-    Text,
-    JsonObject,
 }
 
 pub trait AsyncIteratorNext: AsyncIterator {
