@@ -1,4 +1,4 @@
-use crate::Role;
+use crate::{Role, api};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -93,4 +93,45 @@ pub struct ToolCall {
 pub struct Function {
     pub name: String,
     pub arguments: String,
+}
+
+impl From<&Message> for api::request::Message {
+    fn from(value: &Message) -> Self {
+        match value {
+            Message::System(s) => api::request::Message::System {
+                name: s.name.clone(),
+                content: s.content.clone(),
+            },
+            Message::User(u) => api::request::Message::User {
+                name: u.name.clone(),
+                content: u.content.clone(),
+            },
+            Message::Assistant(a) => api::request::Message::Assistant {
+                name: a.name.clone(),
+                content: a.content.clone(),
+                reasoning_content: a.reasoning_content.clone(),
+                tool_calls: a
+                    .tool_calls
+                    .as_ref()
+                    .map(|tcs| tcs.iter().map(api::request::ToolCall::from).collect()),
+            },
+            Message::Tool(t) => api::request::Message::Tool {
+                tool_call_id: t.tool_call_id.clone(),
+                content: t.content.clone(),
+            },
+        }
+    }
+}
+
+impl From<&ToolCall> for api::request::ToolCall {
+    fn from(value: &ToolCall) -> Self {
+        Self {
+            r#type: api::ToolCallType::Function,
+            id: value.id.clone(),
+            function: api::request::Function {
+                name: value.function.name.clone(),
+                arguments: value.function.arguments.clone(),
+            },
+        }
+    }
 }

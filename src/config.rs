@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::api;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Model {
     #[serde(rename = "deepseek-chat")]
@@ -12,4 +14,19 @@ pub enum Model {
 pub enum ResponseFormat {
     Text,
     JsonObject,
+}
+
+impl From<ResponseFormat> for api::request::ResponseFormatType {
+    fn from(value: ResponseFormat) -> Self {
+        match value {
+            ResponseFormat::Text => api::request::ResponseFormatType::Text,
+            ResponseFormat::JsonObject => api::request::ResponseFormatType::JsonObject,
+        }
+    }
+}
+
+impl From<ResponseFormat> for api::request::ResponseFormat {
+    fn from(value: ResponseFormat) -> Self {
+        api::request::ResponseFormatType::from(value).into()
+    }
 }

@@ -2,6 +2,8 @@ use std::{future::Future, pin::Pin};
 
 use schemars::Schema;
 
+use crate::api;
+
 pub type ToolFuture = Pin<Box<dyn Future<Output = String> + Send + 'static>>;
 
 #[derive(Clone, Copy)]
@@ -26,6 +28,16 @@ impl Tool {
             description,
             parameters,
             call,
+        }
+    }
+}
+
+impl From<&Tool> for api::request::Tool {
+    fn from(value: &Tool) -> Self {
+        Self::Function {
+            name: value.name,
+            description: value.description,
+            parameters: (value.parameters)(),
         }
     }
 }
